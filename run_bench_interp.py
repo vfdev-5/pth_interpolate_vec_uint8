@@ -69,7 +69,7 @@ def patched_as_column_strings(self):
     return output
 
 
-def run_benchmark(c, dtype, size, osize, aa, mode, mf="channels_first", min_run_time=10, tag=""):
+def run_benchmark(c, dtype, size, osize, aa, mode, mf="channels_first", min_run_time=10, tag="", with_torchvision=False):
     results = []
     torch.manual_seed(12)
 
@@ -141,20 +141,21 @@ def run_benchmark(c, dtype, size, osize, aa, mode, mf="channels_first", min_run_
         ).blocked_autorange(min_run_time=min_run_time)
     )
     # Torchvision resize
-    results.append(
-        benchmark.Timer(
-            # output = torchvision_resize(tensor, mode=mode, size=(osize, osize), aa=aa)
-            stmt=f"fn(data, mode='{mode}', size=({osize}, {osize}), aa={aa})",
-            globals={
-                "data": tensor,
-                "fn": torchvision_resize
-            },
-            num_threads=torch.get_num_threads(),
-            label="Resize",
-            sub_label=f"{c} {dtype} {mf} {mode} {size} -> {osize} aa={aa}",
-            description=f"torchvision resize",
-        ).blocked_autorange(min_run_time=min_run_time)
-    )
+    if with_torchvision:
+        results.append(
+            benchmark.Timer(
+                # output = torchvision_resize(tensor, mode=mode, size=(osize, osize), aa=aa)
+                stmt=f"fn(data, mode='{mode}', size=({osize}, {osize}), aa={aa})",
+                globals={
+                    "data": tensor,
+                    "fn": torchvision_resize
+                },
+                num_threads=torch.get_num_threads(),
+                label="Resize",
+                sub_label=f"{c} {dtype} {mf} {mode} {size} -> {osize} aa={aa}",
+                description=f"torchvision resize",
+            ).blocked_autorange(min_run_time=min_run_time)
+        )
 
     return results
 
@@ -164,6 +165,7 @@ def main(
     min_run_time: int = 10,
     tag: str = "",
     display: bool = True,
+    with_torchvision: bool = False,
 ):
 
     output_filepath = Path(output_filepath)
@@ -191,7 +193,7 @@ def main(
                     test_results += run_benchmark(
                         c=c, dtype=dtype, size=size,
                         osize=osize, aa=aa, mode=mode, mf=mf,
-                        min_run_time=min_run_time, tag=tag
+                        min_run_time=min_run_time, tag=tag, with_torchvision=with_torchvision
                     )
 
     with open(output_filepath, "wb") as handler:

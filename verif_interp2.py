@@ -46,16 +46,16 @@ def store_expected(tensor, output, output_path, seed, mf, c, dtype, size, mode, 
     output_path = Path(output_path)
     if not output_path.exists():
         output_path.mkdir(parents=True)
-    filepath = output_path / f"{seed}_{mf}_{c}_{dtype}_{size}_{mode}_{osize}_{aa}_{ac}.pt"
+    filepath = output_path / f"{seed}_{mf}_{c}_{dtype}_{size[0]}_{size[1]}_{mode}_{osize[0]}_{aa}_{ac}.pt"
     torch.save(
-        {"input": tensor, "output": output},
+        {"input": tensor, "output": output, "torch_version": torch.__version__},
         filepath
     )
 
 
 def get_expected(tensor, output_path, seed, mf, c, dtype, size, mode, osize, aa, ac):
     output_path = Path(output_path)
-    filepath = output_path / f"{seed}_{mf}_{c}_{dtype}_{size}_{mode}_{osize}_{aa}_{ac}.pt"
+    filepath = output_path / f"{seed}_{mf}_{c}_{dtype}_{size[0]}_{size[1]}_{mode}_{osize[0]}_{aa}_{ac}.pt"
     obj = torch.load(filepath)
     inpt = obj["input"]
     torch.testing.assert_close(inpt, tensor)
@@ -81,9 +81,9 @@ def main(output_path: str, is_ref: bool):
     for ac in [True, False]:
         for mf in ["channels_last", "channels_first"]:
             for c, dtype in [
-                # (3, torch.uint8),
-                # (1, torch.uint8),
-                # (2, torch.uint8),
+                (3, torch.uint8),
+                (1, torch.uint8),
+                (2, torch.uint8),
                 (4, torch.uint8),
 
                 (3, torch.float32),
@@ -91,32 +91,40 @@ def main(output_path: str, is_ref: bool):
                 (2, torch.float32),
                 (4, torch.float32),
             ]:
-                for size in [256, 520, 712]:
+                for size in [256, (256, 299)]:
+                    if isinstance(size, int):
+                        size = [size, size]
+
                     for osize, aa, mode in [
                         (32, True, "bilinear"),
                         (32, False, "bilinear"),
+                        (224, True, "bilinear"),
+                        (224, False, "bilinear"),
+                        (320, True, "bilinear"),
+                        (320, False, "bilinear"),
                     ]:
+                        osize = (osize, osize + 1)
                         print("mf/size/dtype/c/osize/aa/mode/ac : ", mf, size, dtype, c, osize, aa, mode, ac, end=" ")
 
-                        seed = 12
+                        seed = 115
                         torch.manual_seed(seed)
 
                         if dtype == torch.bool:
-                            tensor = torch.randint(0, 2, size=(c, size, size), dtype=dtype)
+                            tensor = torch.randint(0, 2, size=(c, size[0], size[1]), dtype=dtype)
                         elif dtype == torch.complex64:
-                            real = torch.randint(0, 256, size=(c, size, size), dtype=torch.float32)
-                            imag = torch.randint(0, 256, size=(c, size, size), dtype=torch.float32)
+                            real = torch.randint(0, 256, size=(c, size[0], size[1]), dtype=torch.float32)
+                            imag = torch.randint(0, 256, size=(c, size[0], size[1]), dtype=torch.float32)
                             tensor = torch.complex(real, imag)
                         elif dtype == torch.int8:
-                            tensor = torch.randint(-127, 127, size=(c, size, size), dtype=dtype)
+                            tensor = torch.randint(-127, 127, size=(c, size[0], size[1]), dtype=dtype)
                         else:
-                            tensor = torch.randint(0, 256, size=(c, size, size), dtype=dtype)
+                            tensor = torch.randint(0, 256, size=(c, size[0], size[1]), dtype=dtype)
 
                         expected_pil = None
                         if dtype == torch.uint8 and c == 3 and aa:
                             np_array = tensor.clone().permute(1, 2, 0).contiguous().numpy()
                             pil_img = PIL.Image.fromarray(np_array)
-                            pil_img = pil_img.resize((osize, osize), resample=resampling_map[mode])
+                            pil_img = pil_img.resize(osize[::-1], resample=resampling_map[mode])
                             expected_pil = torch.from_numpy(np.asarray(pil_img)).clone().permute(2, 0, 1).contiguous()
 
                         memory_format = torch.channels_last if mf == "channels_last" else torch.contiguous_format
@@ -158,7 +166,9 @@ def main(output_path: str, is_ref: bool):
 
                         if mode == "bilinear":
                             assert mae.item() < 1.0, mae.item()
-                            assert max_abs_err.item() < 1.0 + 1e-5, max_abs_err.item()
+                            m = abs_diff > 1.5
+                            assert max_abs_err.item() < 1.0 + 1e-5, (max_abs_err.item(), expected_ten.float()[m], output.float()[m])
+
                             # if not (mae.item() < 1.0 and max_abs_err.item() < 1.0 + 1e-5):
                             #     print("FAILED")
                             # else:

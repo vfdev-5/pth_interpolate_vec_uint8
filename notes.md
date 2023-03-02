@@ -11,14 +11,27 @@ pip uninstall -y pillow && CC="cc -mavx2" pip install --no-cache-dir --force-rei
 wget https://raw.githubusercontent.com/pytorch/vision/main/torchvision/transforms/functional_tensor.py -O torchvision_functional_tensor.py
 ```
 
+### On PR
 ```
 python -u run_bench_interp.py "output/$(date "+%Y%m%d-%H%M%S")-pr.pkl" --tag=PR
 ```
 
+```
+python -u run_bench_interp.py "output/$(date "+%Y%m%d-%H%M%S")-pr.pkl" --tag=PR --with-torchvision
+```
+
+### On nightly
+```
+python -u run_bench_interp.py "output/$(date "+%Y%m%d-%H%M%S")-nightly.pkl" --tag=nightly
+```
+
+
 ## Output consistency with master pytorch
 
 ```
-# On pytorch-nightly
+pip install fire
+
+# On pytorch-nightly or 1.13.1
 python verif_interp2.py verif_expected --is_ref=True
 
 # On PR
@@ -26,6 +39,51 @@ python verif_interp2.py verif_expected --is_ref=False
 ```
 
 ## Some results
+
+### 02/03/2023
+
+- AVX code update to handle RGB without copying to RGBA
+
+```
+PIL version:  9.0.0.post1
+[-------------------------------------------------------------------- Resize --------------------------------------------------------------------]
+                                                                 |  Pillow (9.0.0.post1)  |  torch (2.0.0a0+git8d22fc6) PR  |   torchvision resize
+1 threads: ---------------------------------------------------------------------------------------------------------------------------------------
+      3 torch.uint8 channels_last bilinear 256 -> 32 aa=True     |    38.494 (+-0.147)    |         92.690 (+-0.469)        |   365.949 (+-0.733)
+      3 torch.uint8 channels_last bilinear 256 -> 32 aa=False    |                        |         69.978 (+-0.149)        |    74.216 (+-0.254)
+      3 torch.uint8 channels_last bilinear 520 -> 32 aa=True     |   112.797 (+-0.664)    |        199.637 (+-1.008)        |   1562.155 (+-5.665)
+      3 torch.uint8 channels_last bilinear 520 -> 32 aa=False    |                        |        120.906 (+-0.916)        |   187.384 (+-1.056)
+      3 torch.uint8 channels_last bilinear 712 -> 32 aa=True     |   186.492 (+-4.095)    |        298.649 (+-1.025)        |  2969.693 (+-20.888)
+      3 torch.uint8 channels_last bilinear 712 -> 32 aa=False    |                        |        157.991 (+-0.577)        |   317.267 (+-0.414)
+      3 torch.uint8 channels_last bilinear 270 -> 224 aa=True    |   139.807 (+-0.900)    |        428.483 (+-2.282)        |   1243.928 (+-9.034)
+      3 torch.uint8 channels_last bilinear 270 -> 224 aa=False   |                        |        413.357 (+-2.621)        |   920.346 (+-6.303)
+      4 torch.uint8 channels_last bilinear 256 -> 32 aa=True     |                        |         71.099 (+-0.621)        |   469.975 (+-0.832)
+      4 torch.uint8 channels_last bilinear 256 -> 32 aa=False    |                        |         71.985 (+-0.352)        |    87.489 (+-0.232)
+      4 torch.uint8 channels_last bilinear 520 -> 32 aa=True     |                        |        178.459 (+-0.538)        |   2077.379 (+-6.035)
+      4 torch.uint8 channels_last bilinear 520 -> 32 aa=False    |                        |        125.413 (+-0.595)        |   238.725 (+-0.642)
+      4 torch.uint8 channels_last bilinear 712 -> 32 aa=True     |                        |        273.980 (+-6.355)        |  3928.220 (+-30.252)
+      4 torch.uint8 channels_last bilinear 712 -> 32 aa=False    |                        |        165.420 (+-0.632)        |   422.717 (+-1.076)
+      4 torch.uint8 channels_last bilinear 270 -> 224 aa=True    |                        |        444.087 (+-5.410)        |  1493.987 (+-46.857)
+      4 torch.uint8 channels_last bilinear 270 -> 224 aa=False   |                        |        425.220 (+-2.867)        |   999.073 (+-10.833)
+      3 torch.uint8 channels_first bilinear 256 -> 32 aa=True    |    38.582 (+-0.115)    |        147.970 (+-0.303)        |   353.628 (+-1.016)
+      3 torch.uint8 channels_first bilinear 256 -> 32 aa=False   |                        |        149.710 (+-3.397)        |   203.966 (+-0.399)
+      3 torch.uint8 channels_first bilinear 520 -> 32 aa=True    |   112.984 (+-0.439)    |        486.716 (+-1.509)        |   1545.843 (+-2.481)
+      3 torch.uint8 channels_first bilinear 520 -> 32 aa=False   |                        |        433.658 (+-2.452)        |   683.053 (+-10.833)
+      3 torch.uint8 channels_first bilinear 712 -> 32 aa=True    |   186.904 (+-0.621)    |        848.435 (+-2.495)        |  2909.753 (+-17.134)
+      3 torch.uint8 channels_first bilinear 712 -> 32 aa=False   |                        |        739.664 (+-2.719)        |   1415.403 (+-4.448)
+      3 torch.uint8 channels_first bilinear 270 -> 224 aa=True   |   140.154 (+-0.353)    |        604.671 (+-1.417)        |   814.513 (+-1.964)
+      3 torch.uint8 channels_first bilinear 270 -> 224 aa=False  |                        |        586.507 (+-1.497)        |   1221.633 (+-5.803)
+      4 torch.uint8 channels_first bilinear 256 -> 32 aa=True    |                        |         90.029 (+-0.464)        |   457.867 (+-1.191)
+      4 torch.uint8 channels_first bilinear 256 -> 32 aa=False   |                        |         91.796 (+-0.552)        |   251.914 (+-0.726)
+      4 torch.uint8 channels_first bilinear 520 -> 32 aa=True    |                        |        246.137 (+-0.816)        |   2049.130 (+-6.283)
+      4 torch.uint8 channels_first bilinear 520 -> 32 aa=False   |                        |        193.739 (+-0.453)        |   936.896 (+-4.979)
+      4 torch.uint8 channels_first bilinear 712 -> 32 aa=True    |                        |        398.765 (+-1.025)        |  3893.657 (+-22.681)
+      4 torch.uint8 channels_first bilinear 712 -> 32 aa=False   |                        |        289.966 (+-0.439)        |  1863.072 (+-13.275)
+      4 torch.uint8 channels_first bilinear 270 -> 224 aa=True   |                        |        564.773 (+-11.819)       |   1070.920 (+-3.889)
+      4 torch.uint8 channels_first bilinear 270 -> 224 aa=False  |                        |        546.738 (+-1.310)        |   1161.150 (+-4.633)
+
+Times are in microseconds (us).
+```
 
 ### 08/02/2023
 
@@ -642,6 +700,28 @@ tensor([[[[ 12,  15,  17,  19],
           [252, 255,   0,   3],
           [ 44,  47,  49,  51],
           [ 92,  95,  97,  99]]]], dtype=torch.uint8)
+```
+
+
+## Various past issues
+
+PT113 vs PT nightly (2.1.0a0+git5309c44)
+```
+python verif_interp2.py verif_expected --is_ref=False
+
+mf/size/dtype/c/osize/aa/mode/ac :  channels_last [256, 256] torch.uint8 3 (320, 321) False bilinear True  -> get expected from file
+Traceback (most recent call last):
+  File "verif_interp2.py", line 191, in <module>
+    fire.Fire(main)
+  File "/usr/local/lib/python3.8/dist-packages/fire/core.py", line 141, in Fire
+    component_trace = _Fire(component, args, parsed_flag_args, context, name)
+  File "/usr/local/lib/python3.8/dist-packages/fire/core.py", line 475, in _Fire
+    component, remaining_args = _CallAndUpdateTrace(
+  File "/usr/local/lib/python3.8/dist-packages/fire/core.py", line 691, in _CallAndUpdateTrace
+    component = fn(*varargs, **kwargs)
+  File "verif_interp2.py", line 170, in main
+    assert max_abs_err.item() < 1.0 + 1e-5, (max_abs_err.item(), expected_ten.float()[m], output.float()[m])
+AssertionError: (2.0, tensor([159.]), tensor([161.]))
 ```
 
 

@@ -56,21 +56,21 @@ def main():
 
     torch.manual_seed(12)
 
-    for mf in ["channels_last", "channels_first"]:
-    # for mf in ["channels_last", ]:
+    # for mf in ["channels_last", "channels_first"]:
+    for mf in ["channels_last", ]:
         for c, dtype in [
             (3, torch.uint8),
             (4, torch.uint8),
         ]:
-            for size in [256, 520, 712]:
+            # for size in [256, 520, 712]:
             # for size in [256, 520]:
-            # for size in [256, ]:
+            for size in [256, ]:
             # for size in [270, ]:
                 for osize, aa, mode in [
-                    # (224, True, "bilinear"),
-                    # (224, False, "bilinear"),
-                    (32, True, "bilinear"),
-                    (32, False, "bilinear"),
+                    (224, True, "bilinear"),
+                    (224, False, "bilinear"),
+                    # (32, True, "bilinear"),
+                    # (32, False, "bilinear"),
                 ]:
 
                     if dtype == torch.bool:
@@ -140,21 +140,21 @@ def main():
                             description=f"torch ({torch.__version__}) {tag}",
                         ).blocked_autorange(min_run_time=min_run_time)
                     )
-                    # Tensor interp via float32
-                    results.append(
-                        benchmark.Timer(
-                            # expected_ten = pth_downsample(tensor, mode, osize, aa)
-                            stmt=f"fn(data, mode='{mode}', size=({osize}, {osize}), aa={aa})",
-                            globals={
-                                "data": tensor,
-                                "fn": pth_downsample
-                            },
-                            num_threads=torch.get_num_threads(),
-                            label="Resize",
-                            sub_label=f"{c} {dtype} {mf} {mode} {size} -> {osize} aa={aa}",
-                            description=f"torch ({torch.__version__}) {tag} (float)",
-                        ).blocked_autorange(min_run_time=min_run_time)
-                    )
+                    # # Tensor interp via float32
+                    # results.append(
+                    #     benchmark.Timer(
+                    #         # expected_ten = pth_downsample(tensor, mode, osize, aa)
+                    #         stmt=f"fn(data, mode='{mode}', size=({osize}, {osize}), aa={aa})",
+                    #         globals={
+                    #             "data": tensor,
+                    #             "fn": pth_downsample
+                    #         },
+                    #         num_threads=torch.get_num_threads(),
+                    #         label="Resize",
+                    #         sub_label=f"{c} {dtype} {mf} {mode} {size} -> {osize} aa={aa}",
+                    #         description=f"torch ({torch.__version__}) {tag} (float)",
+                    #     ).blocked_autorange(min_run_time=min_run_time)
+                    # )
 
 
     compare = benchmark.Compare(results)

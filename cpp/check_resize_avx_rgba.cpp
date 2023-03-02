@@ -1096,40 +1096,40 @@ void test_ImagingResampleHorizontalConvolution8u()
                 print_m256i(sss256, "sss256");
                 // print_m256i sss256: 0 128 0 0 0 128 0 0 0 128 0 0 0 128 0 0 0 128 0 0 0 128 0 0 0 128 0 0 0 128 0 0
 
-                // lineIn + stride * (x + xmin) + 32 <= lineIn + stride * (xmax + xmin)
-                // --> x <= xmax - 32.0 / stride
-                auto b8_xmax = xmax - 32.0 / stride + 1;
+                // // lineIn + stride * (x + xmin) + 32 <= lineIn + stride * (xmax + xmin)
+                // // --> x <= xmax - 32.0 / stride
+                // auto b8_xmax = xmax - 32.0 / stride + 1;
 
-                for (; x < b8_xmax; x += 8) {
-                    std::cout << "- block 8, x: " << x << std::endl;
+                // for (; x < b8_xmax; x += 8) {
+                //     std::cout << "- block 8, x: " << x << std::endl;
 
-                    __m256i pix, mmk, source;
-                    __m128i tmp = _mm_loadu_si128((__m128i*)&k[x]);
-                    __m256i ksource = _mm256_insertf128_si256(_mm256_castsi128_si256(tmp), tmp, 1);
-                    print_m256i(ksource, "ksource");
+                //     __m256i pix, mmk, source;
+                //     __m128i tmp = _mm_loadu_si128((__m128i*)&k[x]);
+                //     __m256i ksource = _mm256_insertf128_si256(_mm256_castsi128_si256(tmp), tmp, 1);
+                //     print_m256i(ksource, "ksource");
 
-                    source = _mm256_inserti128_si256(_mm256_castsi128_si256(
-                        _mm_loadu_si128((__m128i *) (lineIn + stride * (x + 0 + xmin)))),
-                        _mm_loadu_si128((__m128i *) (lineIn + stride * (x + 4 + xmin))), 1);
-                    print_m256i(source, "source");
+                //     source = _mm256_inserti128_si256(_mm256_castsi128_si256(
+                //         _mm_loadu_si128((__m128i *) (lineIn + stride * (x + 0 + xmin)))),
+                //         _mm_loadu_si128((__m128i *) (lineIn + stride * (x + 4 + xmin))), 1);
+                //     print_m256i(source, "source");
 
-                    pix = _mm256_shuffle_epi8(source, mask_low);
-                    print_m256i(pix, "pix");
-                    mmk = _mm256_shuffle_epi8(ksource, _mm256_set_epi8(
-                        11,10, 9,8, 11,10, 9,8, 11,10, 9,8, 11,10, 9,8,
-                        3,2, 1,0, 3,2, 1,0, 3,2, 1,0, 3,2, 1,0)
-                    );
-                    sss256 = _mm256_add_epi32(sss256, _mm256_madd_epi16(pix, mmk));
-                    print_m256i(sss256, "sss256");
+                //     pix = _mm256_shuffle_epi8(source, mask_low);
+                //     print_m256i(pix, "pix");
+                //     mmk = _mm256_shuffle_epi8(ksource, _mm256_set_epi8(
+                //         11,10, 9,8, 11,10, 9,8, 11,10, 9,8, 11,10, 9,8,
+                //         3,2, 1,0, 3,2, 1,0, 3,2, 1,0, 3,2, 1,0)
+                //     );
+                //     sss256 = _mm256_add_epi32(sss256, _mm256_madd_epi16(pix, mmk));
+                //     print_m256i(sss256, "sss256");
 
-                    pix = _mm256_shuffle_epi8(source, mask_high);
-                    print_m256i(pix, "pix");
-                    mmk = _mm256_shuffle_epi8(ksource, _mm256_set_epi8(
-                        15,14, 13,12, 15,14, 13,12, 15,14, 13,12, 15,14, 13,12,
-                        7,6, 5,4, 7,6, 5,4, 7,6, 5,4, 7,6, 5,4));
-                    sss256 = _mm256_add_epi32(sss256, _mm256_madd_epi16(pix, mmk));
-                    print_m256i(sss256, "sss256");
-                }
+                //     pix = _mm256_shuffle_epi8(source, mask_high);
+                //     print_m256i(pix, "pix");
+                //     mmk = _mm256_shuffle_epi8(ksource, _mm256_set_epi8(
+                //         15,14, 13,12, 15,14, 13,12, 15,14, 13,12, 15,14, 13,12,
+                //         7,6, 5,4, 7,6, 5,4, 7,6, 5,4, 7,6, 5,4));
+                //     sss256 = _mm256_add_epi32(sss256, _mm256_madd_epi16(pix, mmk));
+                //     print_m256i(sss256, "sss256");
+                // }
 
                 // lineIn + stride * (x + xmin) + 16 <= lineIn0 + stride * (xmax + xmin)
                 // --> x <= xmax - 16.0 / stride
@@ -1139,17 +1139,22 @@ void test_ImagingResampleHorizontalConvolution8u()
                     std::cout << "- block 4, x: " << x << std::endl;
                     __m256i pix, mmk, source;
                     __m128i tmp = _mm_loadl_epi64((__m128i*)&k[x]);
+                    print_m128i(tmp, "1 tmp");
                     __m256i ksource = _mm256_insertf128_si256(_mm256_castsi128_si256(tmp), tmp, 1);
                     print_m256i(ksource, "ksource");
 
                     tmp = _mm_loadu_si128((__m128i*) (lineIn + stride * (x + xmin)));
+                    print_m128i(tmp, "2 tmp");
+
                     source = _mm256_insertf128_si256(_mm256_castsi128_si256(tmp), tmp, 1);
                     print_m256i(source, "source");
 
                     pix = _mm256_shuffle_epi8(source, mask_hl);
+                    print_m256i(pix, "pix");
                     mmk = _mm256_shuffle_epi8(ksource, _mm256_set_epi8(
                         7,6, 5,4, 7,6, 5,4, 7,6, 5,4, 7,6, 5,4,
                         3,2, 1,0, 3,2, 1,0, 3,2, 1,0, 3,2, 1,0));
+                    print_m256i(mmk, "mmk");
                     sss256 = _mm256_add_epi32(sss256, _mm256_madd_epi16(pix, mmk));
                     print_m256i(sss256, "sss256");
                 }
