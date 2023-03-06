@@ -82,8 +82,6 @@ def main():
         np.testing.assert_allclose(expected, output[:, :, :3])
 
 
-
-
 if __name__ == "__main__":
 
     torch.set_num_threads(1)

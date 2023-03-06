@@ -1,0 +1,107 @@
+ImagingResampleVerticalConvolution8u(unsigned char*, unsigned char const*, long, long, long, short*, unsigned int, long):
+        push    r14
+        mov     r14, rdi
+        mov     rdi, rdx
+        mov     edx, 1
+        push    r13
+        mov     r13, rcx
+        push    r12
+        mov     r12, r9
+        push    rbp
+        push    rbx
+        mov     r9, QWORD PTR 56[rsp]
+        mov     r10d, DWORD PTR 48[rsp]
+        imul    rdi, r9
+        lea     ecx, -1[r10]
+        sal     edx, cl
+        test    rdi, rdi
+        jle     .L14
+        imul    r13, rdi
+        vmovd   xmm7, edx
+        vmovd   xmm3, r10d
+        mov     rbp, r8
+        vpshufd xmm7, xmm7, 0
+        lea     rdx, [r12+r8*2]
+        vpxor   xmm5, xmm5, xmm5
+        xor     r8d, r8d
+        vmovdqa xmm6, xmm7
+        vpxor   xmm4, xmm4, xmm4
+        add     r13, rsi
+.L11:
+        test    rbp, rbp
+        jle     .L12
+        cmp     r9, 3
+        je      .L4
+        cmp     r9, 4
+        je      .L5
+        mov     rsi, r12
+        vmovdqa xmm0, xmm6
+.L7:
+        movsx   ecx, WORD PTR [rsi]
+        add     rsi, 2
+        vmovd   xmm2, ecx
+        vpshufd xmm1, xmm2, 0
+        vpmaddwd        xmm1, xmm8, xmm1
+        vpaddd  xmm0, xmm1, xmm0
+        cmp     rsi, rdx
+        jne     .L7
+.L3:
+        vpsrad  xmm0, xmm0, xmm3
+        vpackssdw       xmm0, xmm0, xmm5
+        vpackuswb       xmm0, xmm0, xmm4
+        vmovd   DWORD PTR [r14+r8], xmm0
+        add     r8, r9
+        cmp     rdi, r8
+        jg      .L11
+.L14:
+        pop     rbx
+        pop     rbp
+        pop     r12
+        pop     r13
+        pop     r14
+        ret
+.L4:
+        lea     rcx, 0[r13+r8]
+        mov     r10, r12
+        vmovdqa xmm0, xmm6
+.L9:
+        movzx   r11d, BYTE PTR 2[rcx]
+        and     eax, 16777215
+        mov     al, BYTE PTR [rcx]
+        add     r10, 2
+        mov     ah, BYTE PTR 1[rcx]
+        movsx   esi, WORD PTR -2[r10]
+        add     rcx, rdi
+        sal     r11d, 16
+        and     eax, -16711681
+        vmovd   xmm2, esi
+        or      eax, r11d
+        vpshufd xmm2, xmm2, 0
+        vmovd   xmm1, eax
+        vpmovzxbd       xmm1, xmm1
+        vmovdqa xmm8, xmm1
+        vpmaddwd        xmm1, xmm1, xmm2
+        vpaddd  xmm0, xmm1, xmm0
+        cmp     r10, rdx
+        jne     .L9
+        jmp     .L3
+.L5:
+        lea     r10, 0[r13+r8]
+        mov     rsi, r12
+        vmovdqa xmm0, xmm6
+.L8:
+        movsx   ecx, WORD PTR [rsi]
+        vpmovzxbd       xmm1, DWORD PTR [r10]
+        add     rsi, 2
+        add     r10, rdi
+        vmovd   xmm2, ecx
+        vmovdqa xmm8, xmm1
+        vpshufd xmm2, xmm2, 0
+        vpmaddwd        xmm1, xmm1, xmm2
+        vpaddd  xmm0, xmm1, xmm0
+        cmp     rsi, rdx
+        jne     .L8
+        jmp     .L3
+.L12:
+        vmovdqa xmm0, xmm7
+        jmp     .L3

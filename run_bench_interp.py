@@ -189,6 +189,12 @@ def main(
                         (32, False, "bilinear"),
                     ]
 
+                if size == 256:
+                    osize_aa_mode_list += [
+                        (320, True, "bilinear"),
+                        (320, False, "bilinear"),
+                    ]
+
                 for osize, aa, mode in osize_aa_mode_list:
                     test_results += run_benchmark(
                         c=c, dtype=dtype, size=size,

@@ -67,10 +67,16 @@ def main():
             for size in [256, ]:
             # for size in [270, ]:
                 for osize, aa, mode in [
-                    (224, True, "bilinear"),
-                    (224, False, "bilinear"),
-                    # (32, True, "bilinear"),
-                    # (32, False, "bilinear"),
+                    ((224, 224), True, "bilinear"),
+                    ((224, 224), False, "bilinear"),
+                    # Horizontal only
+                    ((256, 224), True, "bilinear"),
+                    ((256, 224), False, "bilinear"),
+                    # Vertical only
+                    ((224, 256), True, "bilinear"),
+                    ((225, 256), False, "bilinear"),
+                    # ((32, 32), True, "bilinear"),
+                    # ((32, 32), False, "bilinear"),
                 ]:
 
                     if dtype == torch.bool:
@@ -89,13 +95,13 @@ def main():
                     if dtype == torch.uint8 and c == 3 and aa:
                         np_array = tensor.clone().permute(1, 2, 0).contiguous().numpy()
                         pil_img = PIL.Image.fromarray(np_array)
-                        output_pil_img = pil_img.resize((osize, osize), resample=resampling_map[mode])
+                        output_pil_img = pil_img.resize(osize[::-1], resample=resampling_map[mode])
                         expected_pil = torch.from_numpy(np.asarray(output_pil_img)).clone().permute(2, 0, 1).contiguous()
 
                     memory_format = torch.channels_last if mf == "channels_last" else torch.contiguous_format
                     tensor = tensor[None, ...].contiguous(memory_format=memory_format)
 
-                    output = pth_downsample_i8(tensor, mode=mode, size=(osize, osize), aa=aa)
+                    output = pth_downsample_i8(tensor, mode=mode, size=osize, aa=aa)
                     output = output[0, ...]
 
                     if expected_pil is not None:
@@ -114,7 +120,7 @@ def main():
                         results.append(
                             benchmark.Timer(
                                 # pil_img = pil_img.resize((osize, osize), resample=resampling_map[mode])
-                                stmt=f"data.resize(({osize}, {osize}), resample=resample_val)",
+                                stmt=f"data.resize({osize[::-1]}, resample=resample_val)",
                                 globals={
                                     "data": pil_img,
                                     "resample_val": resampling_map[mode],
@@ -129,7 +135,7 @@ def main():
                     results.append(
                         benchmark.Timer(
                             # output = pth_downsample_i8(tensor, mode=mode, size=(osize, osize), aa=aa)
-                            stmt=f"fn(data, mode='{mode}', size=({osize}, {osize}), aa={aa})",
+                            stmt=f"fn(data, mode='{mode}', size={osize}, aa={aa})",
                             globals={
                                 "data": tensor,
                                 "fn": pth_downsample_i8

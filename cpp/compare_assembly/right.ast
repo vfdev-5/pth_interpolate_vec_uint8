@@ -1,0 +1,99 @@
+ImagingResampleVerticalConvolution8u(unsigned char*, unsigned char const*, long, long, long, short*, unsigned int, long):
+        push    r14
+        mov     eax, 1
+        push    r12
+        push    rbp
+        mov     rbp, rcx
+        push    rbx
+        mov     rbx, r8
+        mov     r8, QWORD PTR 48[rsp]
+        mov     r10d, DWORD PTR 40[rsp]
+        imul    rdx, r8
+        lea     ecx, -1[r10]
+        sal     eax, cl
+        test    rdx, rdx
+        jle     .L14
+        imul    rbp, rdx
+        vmovd   xmm7, eax
+        vmovd   xmm4, r10d
+        xor     r11d, r11d
+        vpshufd xmm8, xmm7, 0
+        vpxor   xmm6, xmm6, xmm6
+        vpxor   xmm5, xmm5, xmm5
+        vmovdqa xmm7, xmm8
+        add     rbp, rsi
+        lea     rsi, [r9+rbx*2]
+.L11:
+        test    rbx, rbx
+        jle     .L12
+        cmp     r8, 3
+        je      .L4
+        cmp     r8, 4
+        je      .L5
+        mov     rcx, r9
+        vmovdqa xmm1, xmm7
+.L7:
+        movsx   eax, WORD PTR [rcx]
+        add     rcx, 2
+        vmovd   xmm3, eax
+        vpshufd xmm0, xmm3, 0
+        vpmaddwd        xmm0, xmm2, xmm0
+        vpaddd  xmm1, xmm0, xmm1
+        cmp     rcx, rsi
+        jne     .L7
+.L3:
+        vpsrad  xmm0, xmm1, xmm4
+        vpackssdw       xmm0, xmm0, xmm6
+        vpackuswb       xmm0, xmm0, xmm5
+        vmovd   DWORD PTR [rdi+r11], xmm0
+        add     r11, r8
+        cmp     rdx, r11
+        jg      .L11
+.L14:
+        pop     rbx
+        pop     rbp
+        pop     r12
+        pop     r14
+        ret
+.L5:
+        lea     r10, 0[rbp+r11]
+        mov     rcx, r9
+        vmovdqa xmm1, xmm7
+.L8:
+        movsx   eax, WORD PTR [rcx]
+        vpmovzxbd       xmm0, DWORD PTR [r10]
+        add     rcx, 2
+        add     r10, rdx
+        vmovd   xmm3, eax
+        vmovdqa xmm2, xmm0
+        vpshufd xmm3, xmm3, 0
+        vpmaddwd        xmm0, xmm0, xmm3
+        vpaddd  xmm1, xmm0, xmm1
+        cmp     rcx, rsi
+        jne     .L8
+        jmp     .L3
+.L4:
+        lea     r10, 0[rbp+r11]
+        mov     rcx, r9
+        vmovdqa xmm1, xmm7
+        lea     r12, -12[rsp]
+.L9:
+        movzx   r14d, WORD PTR [r10]
+        movsx   eax, WORD PTR [rcx]
+        add     rcx, 2
+        mov     WORD PTR [r12], r14w
+        movzx   r14d, BYTE PTR 2[r10]
+        vmovd   xmm3, eax
+        add     r10, rdx
+        vpshufd xmm3, xmm3, 0
+        mov     BYTE PTR 2[r12], r14b
+        vpmovzxbd       xmm0, DWORD PTR -12[rsp]
+        vmovdqa xmm2, xmm0
+        vpmaddwd        xmm0, xmm0, xmm3
+        vpaddd  xmm1, xmm0, xmm1
+        cmp     rcx, rsi
+        jne     .L9
+        jmp     .L3
+.L12:
+        vmovdqa xmm1, xmm8
+        jmp     .L3

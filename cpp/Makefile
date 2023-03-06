@@ -12,3 +12,7 @@ check_resize_avx_rgba: check_resize_avx_rgba.cpp
 
 play_avx: play_avx.cpp
 	$(CC) play_avx.cpp -o play_avx
+
+
+check_mem_boundaries_with_asan: check_mem_boundaries_with_asan.cpp
+	clang++ check_mem_boundaries_with_asan.cpp -o check_mem_boundaries_with_asan -O2 -g -fsanitize=address -fno-omit-frame-pointer

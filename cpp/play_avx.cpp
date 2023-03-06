@@ -286,7 +286,10 @@ void test_mm_cvtepu8_epi32() {
     };
 
     unsigned char data[4] = {
-        input[0], input[1], input[2], 0
+        input[0],
+        input[1],
+        input[2],
+        0
     };
 
     auto d1 = _mm_cvtsi32_si128(*(int *) data);
@@ -295,10 +298,9 @@ void test_mm_cvtepu8_epi32() {
     auto d2 = _mm_cvtepu8_epi32(d1);
     print_m128i(d2, "d2");
 
-    int data2[4] = {234, 345, 123, 0};
-
-    auto d3 = _mm_load_si128((__m128i *)data2);
-    print_m128i(d3, "d3");
+    // int data2[4] = {234, 345, 123, 0};
+    // auto d3 = _mm_load_si128((__m128i *)data2);
+    // print_m128i(d3, "d3");
 
 }
 
@@ -308,6 +310,49 @@ void test_mm256_load_si256() {
 
     auto d3 = _mm256_load_si256((__m256i *)data2);
     print_m256i(d3, "d3");
+}
+
+
+void test__m_maskmovq() {
+    char data[4] = {1, 2, 3, 4};
+
+    char output[6] = {5, 6, 7, 0, 0, 0};
+
+    auto t = _m_from_int(*(int*)data);
+
+    char mask_p[4] = {0, 0, 0, 0};
+    auto mask = _m_from_int(*(int*)mask_p);
+
+    _m_maskmovq(t, mask, output);
+
+    print_data(output, 6, "output");
+}
+
+void test_abc() {
+
+    auto stride = 3;
+    auto x = 0;
+    auto xmin = 0;
+
+    char lineIn0[10] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
+    char lineIn1[10] = {11, 12, 13, 14, 15, 16, 17, 18, 19, 20};
+
+    auto pix = _mm256_inserti128_si256(_mm256_castsi128_si256(
+        mm_cvtepu8_epi32(lineIn0 + stride * (x + xmin))),
+        mm_cvtepu8_epi32(lineIn1 + stride * (x + xmin)), 1);
+
+    print_m256i(pix, "pix");
+
+    char output0[4];
+    char output1[4];
+    std::memcpy(output0, lineIn0 + stride * (x + xmin), 3);
+    std::memcpy(output1, lineIn1 + stride * (x + xmin), 3);
+
+    pix = _mm256_inserti128_si256(_mm256_castsi128_si256(
+        mm_cvtepu8_epi32(output0)),
+        mm_cvtepu8_epi32(output1), 1);
+
+    print_m256i(pix, "pix");
 }
 
 
@@ -323,9 +368,13 @@ int main(int argc, char** argv)
 
     // test_mm_cvtepu8_epi32();
 
-    test_mm256_load_si256();
+    // test_mm256_load_si256();
 
     // std::cout << 32.0 / 3 << std::endl;
+
+    // test__m_maskmovq();
+
+    test_abc();
 
     return 0;
 }
