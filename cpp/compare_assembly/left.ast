@@ -1,107 +1,246 @@
-ImagingResampleVerticalConvolution8u(unsigned char*, unsigned char const*, long, long, long, short*, unsigned int, long):
-        push    r14
-        mov     r14, rdi
-        mov     rdi, rdx
-        mov     edx, 1
-        push    r13
-        mov     r13, rcx
-        push    r12
-        mov     r12, r9
-        push    rbp
-        push    rbx
-        mov     r9, QWORD PTR 56[rsp]
-        mov     r10d, DWORD PTR 48[rsp]
-        imul    rdi, r9
-        lea     ecx, -1[r10]
-        sal     edx, cl
-        test    rdi, rdi
-        jle     .L14
-        imul    r13, rdi
-        vmovd   xmm7, edx
-        vmovd   xmm3, r10d
-        mov     rbp, r8
-        vpshufd xmm7, xmm7, 0
-        lea     rdx, [r12+r8*2]
-        vpxor   xmm5, xmm5, xmm5
-        xor     r8d, r8d
-        vmovdqa xmm6, xmm7
-        vpxor   xmm4, xmm4, xmm4
-        add     r13, rsi
-.L11:
-        test    rbp, rbp
-        jle     .L12
-        cmp     r9, 3
-        je      .L4
-        cmp     r9, 4
-        je      .L5
-        mov     rsi, r12
-        vmovdqa xmm0, xmm6
-.L7:
-        movsx   ecx, WORD PTR [rsi]
-        add     rsi, 2
-        vmovd   xmm2, ecx
-        vpshufd xmm1, xmm2, 0
-        vpmaddwd        xmm1, xmm8, xmm1
-        vpaddd  xmm0, xmm1, xmm0
-        cmp     rsi, rdx
-        jne     .L7
-.L3:
-        vpsrad  xmm0, xmm0, xmm3
-        vpackssdw       xmm0, xmm0, xmm5
-        vpackuswb       xmm0, xmm0, xmm4
-        vmovd   DWORD PTR [r14+r8], xmm0
-        add     r8, r9
-        cmp     rdi, r8
-        jg      .L11
-.L14:
-        pop     rbx
-        pop     rbp
-        pop     r12
-        pop     r13
-        pop     r14
-        ret
-.L4:
-        lea     rcx, 0[r13+r8]
-        mov     r10, r12
-        vmovdqa xmm0, xmm6
-.L9:
-        movzx   r11d, BYTE PTR 2[rcx]
-        and     eax, 16777215
-        mov     al, BYTE PTR [rcx]
-        add     r10, 2
-        mov     ah, BYTE PTR 1[rcx]
-        movsx   esi, WORD PTR -2[r10]
-        add     rcx, rdi
-        sal     r11d, 16
-        and     eax, -16711681
-        vmovd   xmm2, esi
-        or      eax, r11d
-        vpshufd xmm2, xmm2, 0
-        vmovd   xmm1, eax
-        vpmovzxbd       xmm1, xmm1
-        vmovdqa xmm8, xmm1
-        vpmaddwd        xmm1, xmm1, xmm2
-        vpaddd  xmm0, xmm1, xmm0
-        cmp     r10, rdx
-        jne     .L9
-        jmp     .L3
-.L5:
-        lea     r10, 0[r13+r8]
-        mov     rsi, r12
-        vmovdqa xmm0, xmm6
-.L8:
-        movsx   ecx, WORD PTR [rsi]
-        vpmovzxbd       xmm1, DWORD PTR [r10]
-        add     rsi, 2
-        add     r10, rdi
-        vmovd   xmm2, ecx
-        vmovdqa xmm8, xmm1
-        vpshufd xmm2, xmm2, 0
-        vpmaddwd        xmm1, xmm1, xmm2
-        vpaddd  xmm0, xmm1, xmm0
-        cmp     rsi, rdx
-        jne     .L8
-        jmp     .L3
-.L12:
-        vmovdqa xmm0, xmm7
-        jmp     .L3
+#include <immintrin.h>
+#include <cassert>
+#include <cstring>
+
+
+#define C10_RESTRICT __restrict
+#define C10_UNLIKELY(expr) (__builtin_expect(static_cast<bool>(expr), 0))
+
+using uint8_t = unsigned char;
+using uint32_t = unsigned int;
+
+
+static __m128i inline mm_cvtepu8_epi32(const uint8_t* C10_RESTRICT ptr) {
+  return _mm_cvtepu8_epi32(_mm_cvtsi32_si128(*(int32_t*)ptr));
+}
+
+
+void ImagingResampleHorizontalConvolution8u4x(
+    uint8_t* C10_RESTRICT lineOut0,
+    uint8_t* C10_RESTRICT lineOut1,
+    uint8_t* C10_RESTRICT lineOut2,
+    uint8_t* C10_RESTRICT lineOut3,
+    const uint8_t* C10_RESTRICT lineIn0,
+    const uint8_t* C10_RESTRICT lineIn1,
+    const uint8_t* C10_RESTRICT lineIn2,
+    const uint8_t* C10_RESTRICT lineIn3,
+    int64_t xsize,
+    const int64_t* idx_ptr_xmin,
+    const int64_t* idx_ptr_size,
+    const int16_t* kk,
+    int kmax,
+    unsigned int coefs_precision,
+    int64_t num_channels) {
+
+  // Define shuffling masks (low/high) for num_channels 4 and 3
+  const __m256i masks_low_high_c4[2] = {
+    _mm256_set_epi8(
+      -1, 7, -1, 3, -1, 6, -1, 2, -1, 5, -1, 1, -1, 4, -1, 0,
+      -1, 7, -1, 3, -1, 6, -1, 2, -1, 5, -1, 1, -1, 4, -1, 0
+    ),
+    _mm256_set_epi8(
+      -1, 15, -1, 11, -1, 14, -1, 10, -1, 13, -1, 9, -1, 12, -1, 8,
+      -1, 15, -1, 11, -1, 14, -1, 10, -1, 13, -1, 9, -1, 12, -1, 8
+    )
+  };
+  const __m256i masks_low_high_c3[2] = {
+    _mm256_set_epi8(
+      -1, -1, -1, -1, -1, 5, -1, 2, -1, 4, -1, 1, -1, 3, -1, 0,
+      -1, -1, -1, -1, -1, 5, -1, 2, -1, 4, -1, 1, -1, 3, -1, 0
+    ),
+    _mm256_set_epi8(
+      -1, -1, -1, -1, -1, 11, -1, 8, -1, 10, -1, 7, -1, 9, -1, 6,
+      -1, -1, -1, -1, -1, 11, -1, 8, -1, 10, -1, 7, -1, 9, -1, 6
+    )
+  };
+
+  const auto mask_low = (num_channels == 3) ? masks_low_high_c3[0] : masks_low_high_c4[0];
+  const auto mask_high = (num_channels == 3) ? masks_low_high_c3[1] : masks_low_high_c4[1];
+
+  const auto mask_ch = _mm256_set_epi8(
+    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 2, 1, 0,
+    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 2, 1, 0
+  );
+
+  const auto stride = num_channels * 1;  // num channels * sizeof(uint8)
+
+//   TORCH_INTERNAL_ASSERT(stride == 3 || stride == 4);
+  assert(stride == 3 || stride == 4);
+
+  // Precompute xmax limits for block 4 and block 2
+  // lineIn0 + stride * (x + xmin) + 16 <= lineIn0 + stride * (xmax + xmin)
+  // --> x <= xmax - 16.0 / stride
+  // --> x < xmax + 1 - int(16.0 / stride)
+  const auto b4_delta = int(16.0 / stride) - 1;
+
+  // lineIn0 + stride * (x + xmin) + 8 <= lineIn0 + stride * (xmax + xmin)
+  // --> x <= xmax - 8.0 / stride
+  // --> x < xmax + 1 - int(8.0 / stride)
+  const auto b2_delta = int(8.0 / stride) - 1;
+
+  // xsize = output width, xx = output x index
+  // xmax = interpolation size, x = interpolation index (horizontal <-> x dimension)
+  // xmin = input x start index corresponding to output x index (xx)
+
+  const auto zero = _mm256_setzero_si256();
+  const auto initial = _mm256_set1_epi32(1 << (coefs_precision - 1));
+
+//   for (const auto xx : c10::irange(xsize)) {
+  for (auto xx=0; xx < xsize; ++xx) {
+    const auto xmin = idx_ptr_xmin[xx];
+    const auto xmax = idx_ptr_size[xx];
+    const auto * k = &kk[xx * kmax];
+    int64_t x = 0;
+
+    auto sss0 = initial;
+    auto sss1 = initial;
+
+    for (; x < xmax - b4_delta; x += 4) {
+      auto mmk0 = _mm256_set1_epi32(*(int32_t*)&k[x]);
+      auto mmk1 = _mm256_set1_epi32(*(int32_t*)&k[x + 2]);
+
+      auto source = _mm256_inserti128_si256(_mm256_castsi128_si256(
+          _mm_loadu_si128((__m128i *) (lineIn0 + stride * (x + xmin)))),
+          _mm_loadu_si128((__m128i *) (lineIn1 + stride * (x + xmin))), 1);
+
+      auto pix = _mm256_shuffle_epi8(source, mask_low);
+      sss0 = _mm256_add_epi32(sss0, _mm256_madd_epi16(pix, mmk0));
+      pix = _mm256_shuffle_epi8(source, mask_high);
+      sss0 = _mm256_add_epi32(sss0, _mm256_madd_epi16(pix, mmk1));
+
+      source = _mm256_inserti128_si256(_mm256_castsi128_si256(
+          _mm_loadu_si128((__m128i *) (lineIn2 + stride * (x + xmin)))),
+          _mm_loadu_si128((__m128i *) (lineIn3 + stride * (x + xmin))), 1);
+      pix = _mm256_shuffle_epi8(source, mask_low);
+      sss1 = _mm256_add_epi32(sss1, _mm256_madd_epi16(pix, mmk0));
+      pix = _mm256_shuffle_epi8(source, mask_high);
+      sss1 = _mm256_add_epi32(sss1, _mm256_madd_epi16(pix, mmk1));
+    }
+
+    for (; x < xmax - b2_delta; x += 2) {
+      auto mmk = _mm256_set1_epi32(*(int32_t*)&k[x]);
+
+      auto pix = _mm256_inserti128_si256(_mm256_castsi128_si256(
+          _mm_loadu_si64(lineIn0 + stride * (x + xmin))),
+          _mm_loadu_si64(lineIn1 + stride * (x + xmin)), 1);
+      pix = _mm256_shuffle_epi8(pix, mask_low);
+      sss0 = _mm256_add_epi32(sss0, _mm256_madd_epi16(pix, mmk));
+
+      pix = _mm256_inserti128_si256(_mm256_castsi128_si256(
+          _mm_loadu_si64(lineIn2 + stride * (x + xmin))),
+          _mm_loadu_si64(lineIn3 + stride * (x + xmin)), 1);
+      pix = _mm256_shuffle_epi8(pix, mask_low);
+      sss1 = _mm256_add_epi32(sss1, _mm256_madd_epi16(pix, mmk));
+    }
+
+    for (; x < xmax - 1; x++) {
+      auto mmk = _mm256_set1_epi32(k[x]);
+      auto pix = _mm256_inserti128_si256(_mm256_castsi128_si256(
+          mm_cvtepu8_epi32(lineIn0 + stride * (x + xmin))),
+          mm_cvtepu8_epi32(lineIn1 + stride * (x + xmin)), 1);
+      sss0 = _mm256_add_epi32(sss0, _mm256_madd_epi16(pix, mmk));
+
+      pix = _mm256_inserti128_si256(_mm256_castsi128_si256(
+          mm_cvtepu8_epi32(lineIn2 + stride * (x + xmin))),
+          mm_cvtepu8_epi32(lineIn3 + stride * (x + xmin)), 1);
+      sss1 = _mm256_add_epi32(sss1, _mm256_madd_epi16(pix, mmk));
+    }
+
+    if (x == xmax - 1) {
+      // last element x = xmax - 1
+      auto mmk = _mm256_set1_epi32(k[x]);
+      __m256i pix;
+      __m128i p0, p1;
+      if (num_channels == 3) {
+        uint8_t output0[4];
+        uint8_t output1[4];
+        std::memcpy(output0, lineIn0 + stride * (x + xmin), 3);
+        std::memcpy(output1, lineIn1 + stride * (x + xmin), 3);
+        p0 = mm_cvtepu8_epi32(output0);
+        p1 = mm_cvtepu8_epi32(output1);
+      } else {
+        p0 = mm_cvtepu8_epi32(lineIn0 + stride * (x + xmin));
+        p1 = mm_cvtepu8_epi32(lineIn1 + stride * (x + xmin));
+      }
+      pix = _mm256_inserti128_si256(_mm256_castsi128_si256(p0), p1, 1);
+      sss0 = _mm256_add_epi32(sss0, _mm256_madd_epi16(pix, mmk));
+
+      if (num_channels == 3) {
+        uint8_t output0[4];
+        uint8_t output1[4];
+        std::memcpy(output0, lineIn2 + stride * (x + xmin), 3);
+        std::memcpy(output1, lineIn3 + stride * (x + xmin), 3);
+        p0 = mm_cvtepu8_epi32(output0);
+        p1 = mm_cvtepu8_epi32(output1);
+      } else {
+        p0 = mm_cvtepu8_epi32(lineIn2 + stride * (x + xmin));
+        p1 = mm_cvtepu8_epi32(lineIn3 + stride * (x + xmin));
+      }
+      pix = _mm256_inserti128_si256(_mm256_castsi128_si256(p0), p1, 1);
+      sss1 = _mm256_add_epi32(sss1, _mm256_madd_epi16(pix, mmk));
+    }
+
+    sss0 = _mm256_srai_epi32(sss0, coefs_precision);
+    sss1 = _mm256_srai_epi32(sss1, coefs_precision);
+    sss0 = _mm256_packs_epi32(sss0, zero);
+    sss1 = _mm256_packs_epi32(sss1, zero);
+    sss0 = _mm256_packus_epi16(sss0, zero);
+    sss1 = _mm256_packus_epi16(sss1, zero);
+    if (num_channels == 3) {
+        sss0 = _mm256_shuffle_epi8(sss0, mask_ch);
+        sss1 = _mm256_shuffle_epi8(sss1, mask_ch);
+    }
+
+    auto o0 = _mm_cvtsi128_si32(_mm256_extracti128_si256(sss0, 0));
+    auto o1 = _mm_cvtsi128_si32(_mm256_extracti128_si256(sss0, 1));
+    auto o2 = _mm_cvtsi128_si32(_mm256_extracti128_si256(sss1, 0));
+    auto o3 = _mm_cvtsi128_si32(_mm256_extracti128_si256(sss1, 1));
+    if (num_channels == 3 && C10_UNLIKELY(stride * xx + 4 >= xsize * stride)) {
+        std::memcpy(lineOut0 + stride * xx, (unsigned char *) &o0, num_channels);
+        std::memcpy(lineOut1 + stride * xx, (unsigned char *) &o1, num_channels);
+        std::memcpy(lineOut2 + stride * xx, (unsigned char *) &o2, num_channels);
+        std::memcpy(lineOut3 + stride * xx, (unsigned char *) &o3, num_channels);
+    } else {
+      *(uint32_t *)(lineOut0 + stride * xx) = o0;
+      *(uint32_t *)(lineOut1 + stride * xx) = o1;
+      *(uint32_t *)(lineOut2 + stride * xx) = o2;
+      *(uint32_t *)(lineOut3 + stride * xx) = o3;
+    }
+  }
+}
+
+
+void foo(uint8_t* C10_RESTRICT lineOut0,
+    uint8_t* C10_RESTRICT lineOut1,
+    uint8_t* C10_RESTRICT lineOut2,
+    uint8_t* C10_RESTRICT lineOut3,
+    const uint8_t* C10_RESTRICT lineIn0,
+    const uint8_t* C10_RESTRICT lineIn1,
+    const uint8_t* C10_RESTRICT lineIn2,
+    const uint8_t* C10_RESTRICT lineIn3,
+    int64_t xsize,
+    const int64_t* idx_ptr_xmin,
+    const int64_t* idx_ptr_size,
+    const int16_t* kk,
+    int kmax,
+    unsigned int coefs_precision)
+{
+    constexpr int num_channels = 3;
+
+    ImagingResampleHorizontalConvolution8u4x(
+        lineOut0,
+        lineOut1,
+        lineOut2,
+        lineOut3,
+        lineIn0,
+        lineIn1,
+        lineIn2,
+        lineIn3,
+        xsize,
+        idx_ptr_xmin,
+        idx_ptr_size,
+        kk,
+        kmax,
+        coefs_precision,
+        num_channels);
+}

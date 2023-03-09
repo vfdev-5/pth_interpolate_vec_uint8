@@ -4,6 +4,8 @@ import PIL.Image
 import torch
 import torch.utils.benchmark as benchmark
 
+import fire
+
 
 def pth_downsample_i8(img, mode, size, aa=True):
 
@@ -49,35 +51,43 @@ else:
     }
 
 
-def main():
+def main(min_run_time=5.0, debug=False, use_perf=False, check_consistency=True):
     tag = "PR"
     results = []
-    min_run_time = 3.0
 
     torch.manual_seed(12)
 
     # for mf in ["channels_last", "channels_first"]:
     for mf in ["channels_last", ]:
-        for c, dtype in [
-            (3, torch.uint8),
-            (4, torch.uint8),
-        ]:
-            # for size in [256, 520, 712]:
-            # for size in [256, 520]:
-            for size in [256, ]:
-            # for size in [270, ]:
-                for osize, aa, mode in [
-                    ((224, 224), True, "bilinear"),
-                    ((224, 224), False, "bilinear"),
-                    # Horizontal only
-                    ((256, 224), True, "bilinear"),
-                    ((256, 224), False, "bilinear"),
-                    # Vertical only
-                    ((224, 256), True, "bilinear"),
-                    ((225, 256), False, "bilinear"),
-                    # ((32, 32), True, "bilinear"),
-                    # ((32, 32), False, "bilinear"),
+        # for size in [256, 520, 712]:
+        # for size in [256, 520]:
+        # for size in [256, ]:
+        # for size in [700, 520, 256]:
+        for size in [256, ]:
+        # for size in [270, ]:
+            for osize, aa, mode in [
+                ((224, 224), True, "bilinear"),
+                # # ((224, 224), False, "bilinear"),
+                # ((32, 32), True, "bilinear"),
+                # # ((32, 32), False, "bilinear"),
+
+                # Horizontal only
+                # ((size, int(size * 224 / 256)), True, "bilinear"),
+                ((size, 224), True, "bilinear"),
+                ((size, 227), True, "bilinear"),
+                # ((size, 224), False, "bilinear"),
+                # Vertical only
+                ((224, size), True, "bilinear"),
+                ((227, size), True, "bilinear"),
+                # ((224, size), False, "bilinear"),
+            ]:
+                for c, dtype in [
+                    (3, torch.uint8),
+                    (4, torch.uint8),
                 ]:
+                    if debug:
+                        print("")
+                        print(mf, c, dtype, size, osize, aa, mode)
 
                     if dtype == torch.bool:
                         tensor = torch.randint(0, 2, size=(c, size, size), dtype=dtype)
@@ -92,7 +102,9 @@ def main():
 
                     expected_pil = None
                     pil_img = None
-                    if dtype == torch.uint8 and c == 3 and aa:
+
+
+                    if dtype == torch.uint8 and c == 3 and aa and not use_perf:
                         np_array = tensor.clone().permute(1, 2, 0).contiguous().numpy()
                         pil_img = PIL.Image.fromarray(np_array)
                         output_pil_img = pil_img.resize(osize[::-1], resample=resampling_map[mode])
@@ -101,10 +113,17 @@ def main():
                     memory_format = torch.channels_last if mf == "channels_last" else torch.contiguous_format
                     tensor = tensor[None, ...].contiguous(memory_format=memory_format)
 
-                    output = pth_downsample_i8(tensor, mode=mode, size=osize, aa=aa)
-                    output = output[0, ...]
+                    if use_perf:
+                        output = pth_downsample_i8(tensor, mode=mode, size=osize, aa=aa)
+                        continue
+                    else:
+                        output = pth_downsample_i8(tensor, mode=mode, size=osize, aa=aa)
+                        output = output[0, ...]
 
-                    if expected_pil is not None:
+                    if debug:
+                        continue
+
+                    if check_consistency and expected_pil is not None:
                         abs_diff = torch.abs(expected_pil.float() - output.float())
                         mae = torch.mean(abs_diff)
                         max_abs_err = torch.max(abs_diff)
@@ -178,4 +197,4 @@ if __name__ == "__main__":
     print("")
     print("PIL version: ", PIL.__version__)
 
-    main()
+    fire.Fire(main)

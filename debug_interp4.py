@@ -23,7 +23,11 @@ resampling_map = {"bilinear": PIL.Image.BILINEAR, "nearest": PIL.Image.NEAREST, 
 
 
 def main():
-    h, w, c = 28, 29, 3
+
+    check_rgb = True
+
+    # h, w, c = 256, 256, 3
+    h, w, c = 8, 28, 3
     s = w * c
     rgb = list(range(h * s))
     rgba = []
@@ -36,8 +40,8 @@ def main():
                 rgba.append(v)
         rgba.append(255)
 
-    oh, ow = 16, 15
-    # oh, ow = h, 15
+    # oh, ow = 224, 224
+    oh, ow = h, 24
     # oh, ow = 10, w
     # for oh in range(2, h):
     # for ow in range(2, w):
@@ -51,35 +55,35 @@ def main():
         expected = np_output
 
         # use RGB data
+        if check_rgb:
+            t_input = torch.tensor(rgb, dtype=torch.uint8).reshape(1, h, w, 3).permute(0, 3, 1, 2).contiguous(memory_format=torch.channels_last)
+            print(t_input.shape, t_input.is_contiguous(memory_format=torch.channels_last))
 
-        # t_input = torch.tensor(rgb, dtype=torch.uint8).reshape(1, h, w, 3).permute(0, 3, 1, 2).contiguous(memory_format=torch.channels_last)
-        # print(t_input.shape, t_input.is_contiguous(memory_format=torch.channels_last))
+            t_output = torch.nn.functional.interpolate(t_input, (oh, ow), mode="bilinear", antialias=True)
+            print(t_output.shape, t_output.is_contiguous(memory_format=torch.channels_last))
+            output = t_output[0, ...].permute(1, 2, 0)
 
-        # t_output = torch.nn.functional.interpolate(t_input, (oh, ow), mode="bilinear", antialias=True)
-        # print(t_output.shape, t_output.is_contiguous(memory_format=torch.channels_last))
-        # output = t_output[0, ...].permute(1, 2, 0)
+            print("Compare:")
+            print(expected[0, :10, :].ravel().tolist())
+            print(output[0, :10, :3].ravel().tolist())
+            print("")
+            # np.testing.assert_allclose(expected, output[:, :, :3])
 
-        # print("Compare:")
-        # print(expected[0, :10, :].ravel().tolist())
-        # print(output[0, :10, :3].ravel().tolist())
-        # print("")
-        # np.testing.assert_allclose(expected, output[:, :, :3])
+        else:
+            # use RGBA data
+            t_input = torch.tensor(rgba, dtype=torch.uint8).reshape(1, h, w, 4).permute(0, 3, 1, 2).contiguous(memory_format=torch.channels_last)
+            print(t_input.shape, t_input.is_contiguous(memory_format=torch.channels_last))
 
-        # use RGBA data
+            t_output = torch.nn.functional.interpolate(t_input, (oh, ow), mode="bilinear", antialias=True)
+            print(t_output.shape, t_output.is_contiguous(memory_format=torch.channels_last))
+            output = t_output[0, ...].permute(1, 2, 0)
 
-        t_input = torch.tensor(rgba, dtype=torch.uint8).reshape(1, h, w, 4).permute(0, 3, 1, 2).contiguous(memory_format=torch.channels_last)
-        print(t_input.shape, t_input.is_contiguous(memory_format=torch.channels_last))
+            print("Compare:")
+            print(expected[0, :10, :].ravel().tolist())
+            print(output[0, :10, :3].ravel().tolist())
+            print("")
 
-        t_output = torch.nn.functional.interpolate(t_input, (oh, ow), mode="bilinear", antialias=True)
-        print(t_output.shape, t_output.is_contiguous(memory_format=torch.channels_last))
-        output = t_output[0, ...].permute(1, 2, 0)
-
-        print("Compare:")
-        print(expected[0, :10, :].ravel().tolist())
-        print(output[0, :10, :3].ravel().tolist())
-        print("")
-
-        np.testing.assert_allclose(expected, output[:, :, :3])
+            # np.testing.assert_allclose(expected, output[:, :, :3])
 
 
 if __name__ == "__main__":

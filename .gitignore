@@ -1,3 +1,4 @@
+perf.data
 *.pt
 *.pkl
 pillow-simd

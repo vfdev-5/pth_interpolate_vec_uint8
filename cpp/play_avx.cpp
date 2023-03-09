@@ -355,6 +355,30 @@ void test_abc() {
     print_m256i(pix, "pix");
 }
 
+// Unavailable in GCC
+// void test__mm256_cvtsi256_si32() {
+//     int data2[8] = {1, 2, 3, 4, 5, 6, 7, 8};
+//     auto d3 = _mm256_load_si256((__m256i *)data2);
+//     auto d4 = _mm256_cvtsi256_si32(d3);
+//     print_m256i(d3, "d3");
+//     print_data((char *)&d3, 4, "d4");
+// }
+
+
+void test__mm256_castsi256_si128__mm_cvtsi128_si32() {
+    char data[32] = {
+        1, 2, 3, 4, 5, 6, 7, 8, 1, 2, 3, 4, 5, 6, 7, 8,
+        11, 12, 13, 14, 15, 16, 17, 18, 21, 22, 23, 24, 25, 26, 27, 28
+    };
+    auto d3 = _mm256_load_si256((__m256i *)data);
+
+    auto d4 = _mm256_castsi256_si128(d3);
+    print_m128i(d4, "d4");
+    auto d5 = _mm_cvtsi128_si32(d4);
+    print_data((char *)&d5, 4, "d5");
+
+}
+
 
 int main(int argc, char** argv)
 {
@@ -374,7 +398,11 @@ int main(int argc, char** argv)
 
     // test__m_maskmovq();
 
-    test_abc();
+    // test_abc();
+
+    // test__mm256_cvtsi256_si32();
+
+    test__mm256_castsi256_si128__mm_cvtsi128_si32();
 
     return 0;
 }
