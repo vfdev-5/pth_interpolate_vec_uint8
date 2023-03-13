@@ -46,7 +46,7 @@ def store_expected(tensor, output, output_path, seed, mf, c, dtype, size, mode, 
     output_path = Path(output_path)
     if not output_path.exists():
         output_path.mkdir(parents=True)
-    filepath = output_path / f"{seed}_{mf}_{c}_{dtype}_{size[0]}_{size[1]}_{mode}_{osize[0]}_{aa}_{ac}.pt"
+    filepath = output_path / f"{seed}_{mf}_{c}_{dtype}_{size[0]}_{size[1]}_{mode}_{osize[0]}_{osize[1]}_{aa}_{ac}.pt"
     torch.save(
         {"input": tensor, "output": output, "torch_version": torch.__version__},
         filepath
@@ -55,7 +55,7 @@ def store_expected(tensor, output, output_path, seed, mf, c, dtype, size, mode, 
 
 def get_expected(tensor, output_path, seed, mf, c, dtype, size, mode, osize, aa, ac):
     output_path = Path(output_path)
-    filepath = output_path / f"{seed}_{mf}_{c}_{dtype}_{size[0]}_{size[1]}_{mode}_{osize[0]}_{aa}_{ac}.pt"
+    filepath = output_path / f"{seed}_{mf}_{c}_{dtype}_{size[0]}_{size[1]}_{mode}_{osize[0]}_{osize[1]}_{aa}_{ac}.pt"
     obj = torch.load(filepath)
     inpt = obj["input"]
     torch.testing.assert_close(inpt, tensor)
@@ -91,19 +91,27 @@ def main(output_path: str, is_ref: bool):
                 (2, torch.float32),
                 (4, torch.float32),
             ]:
-                for size in [256, (256, 299)]:
+                for size in [256, (256, 299), (299, 321)]:
                     if isinstance(size, int):
                         size = [size, size]
 
                     for osize, aa, mode in [
                         (32, True, "bilinear"),
                         (32, False, "bilinear"),
+                        ((35, 38), True, "bilinear"),
+                        ((35, 38), False, "bilinear"),
                         (224, True, "bilinear"),
                         (224, False, "bilinear"),
+                        ((227, 231), True, "bilinear"),
+                        ((227, 231), False, "bilinear"),
                         (320, True, "bilinear"),
                         (320, False, "bilinear"),
+                        ((323, 327), True, "bilinear"),
+                        ((323, 327), False, "bilinear"),
                     ]:
-                        osize = (osize, osize + 1)
+                        if isinstance(osize, int):
+                            osize = [osize, osize + 1]
+
                         print("mf/size/dtype/c/osize/aa/mode/ac : ", mf, size, dtype, c, osize, aa, mode, ac, end=" ")
 
                         seed = 115

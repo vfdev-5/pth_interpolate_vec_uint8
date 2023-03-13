@@ -72,12 +72,12 @@ def main(min_run_time=5.0, debug=False, use_perf=False, check_consistency=True):
                 # # ((32, 32), False, "bilinear"),
 
                 # Horizontal only
-                # ((size, int(size * 224 / 256)), True, "bilinear"),
-                ((size, 224), True, "bilinear"),
+                ((size, int(size * 224 / 256)), True, "bilinear"),
+                # ((size, 224), True, "bilinear"),
                 ((size, 227), True, "bilinear"),
                 # ((size, 224), False, "bilinear"),
                 # Vertical only
-                ((224, size), True, "bilinear"),
+                ((int(size * 224 / 256), size), True, "bilinear"),
                 ((227, size), True, "bilinear"),
                 # ((224, size), False, "bilinear"),
             ]:

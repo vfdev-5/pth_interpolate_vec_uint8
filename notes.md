@@ -287,8 +287,62 @@ PIL version:  9.0.0.post1
 Times are in microseconds (us).
 ```
 
+- Few other tweaks
+```
+Num threads: 1
+
+PIL version:  9.0.0.post1
+[----------------------------------------------------------- Resize ----------------------------------------------------------]
+                                                                      |  Pillow (9.0.0.post1)  |  torch (2.1.0a0+git1d3a939) PR
+1 threads: --------------------------------------------------------------------------------------------------------------------
+      3 torch.uint8 channels_last bilinear 256 -> (224, 224) aa=True  |         127.3          |              145.3
+      4 torch.uint8 channels_last bilinear 256 -> (224, 224) aa=True  |                        |              140.6
+
+      3 torch.uint8 channels_last bilinear 256 -> (256, 224) aa=True  |          92.3          |              102.0
+      4 torch.uint8 channels_last bilinear 256 -> (256, 224) aa=True  |                        |               94.7
+      3 torch.uint8 channels_last bilinear 256 -> (256, 227) aa=True  |          93.4          |              105.5
+      4 torch.uint8 channels_last bilinear 256 -> (256, 227) aa=True  |                        |              100.7
+
+      3 torch.uint8 channels_last bilinear 256 -> (224, 256) aa=True  |          51.9          |               54.2
+      4 torch.uint8 channels_last bilinear 256 -> (224, 256) aa=True  |                        |               57.5
+      3 torch.uint8 channels_last bilinear 256 -> (227, 256) aa=True  |          53.9          |               55.0
+      4 torch.uint8 channels_last bilinear 256 -> (227, 256) aa=True  |                        |               57.6
+
+Times are in microseconds (us).
+```
 
 
+- Fixed unsafe memory reads
+```
+Num threads: 1
+
+PIL version:  9.0.0.post1
+[----------------------------------------------------------- Resize ----------------------------------------------------------]
+                                                                      |  Pillow (9.0.0.post1)  |  torch (2.1.0a0+git1d3a939) PR
+1 threads: --------------------------------------------------------------------------------------------------------------------
+      3 torch.uint8 channels_last bilinear 256 -> (224, 224) aa=True  |         128.5          |              149.5
+      4 torch.uint8 channels_last bilinear 256 -> (224, 224) aa=True  |                        |              142.9
+
+      3 torch.uint8 channels_last bilinear 256 -> (256, 224) aa=True  |          91.2          |              104.3
+      4 torch.uint8 channels_last bilinear 256 -> (256, 224) aa=True  |                        |               95.3
+      3 torch.uint8 channels_last bilinear 256 -> (256, 227) aa=True  |          93.3          |              110.7
+      4 torch.uint8 channels_last bilinear 256 -> (256, 227) aa=True  |                        |              100.1
+
+      3 torch.uint8 channels_last bilinear 256 -> (224, 256) aa=True  |          52.0          |               56.3
+      4 torch.uint8 channels_last bilinear 256 -> (224, 256) aa=True  |                        |               59.8
+      3 torch.uint8 channels_last bilinear 256 -> (227, 256) aa=True  |          51.8          |               55.8
+      4 torch.uint8 channels_last bilinear 256 -> (227, 256) aa=True  |                        |               59.9
+
+Times are in microseconds (us).
+```
+
+
+- Check potential memory corruptions with ASAN
+
+```
+cd /tmp/pth/interpolate_vec_uint8/
+run_with_asan python verif_interp2.py verif_expected --is_ref=False
+```
 
 
 ## Run benchmarks: nightly vs PR
@@ -329,6 +383,15 @@ python verif_interp2.py verif_expected --is_ref=False
 ```
 
 ## Some results
+
+### 13/03/2023
+
+- Various optims and fixes
+
+```
+
+```
+
 
 ### 02/03/2023
 

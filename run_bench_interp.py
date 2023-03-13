@@ -176,18 +176,14 @@ def main(
             (3, torch.uint8),
             (4, torch.uint8),
         ]:
-            for size in [256, 520, 712, 270]:
+            for size in [256, 520, 712]:
 
-                if size == 270:
-                    osize_aa_mode_list = [
-                        (224, True, "bilinear"),
-                        (224, False, "bilinear"),
-                    ]
-                else:
-                    osize_aa_mode_list = [
-                        (32, True, "bilinear"),
-                        (32, False, "bilinear"),
-                    ]
+                osize_aa_mode_list = [
+                    (32, True, "bilinear"),
+                    (32, False, "bilinear"),
+                    (224, True, "bilinear"),
+                    (224, False, "bilinear"),
+                ]
 
                 if size == 256:
                     osize_aa_mode_list += [
