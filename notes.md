@@ -345,6 +345,102 @@ run_with_asan python verif_interp2.py verif_expected --is_ref=False
 ```
 
 
+- Check `wt_max` computation overhead. `wt_max` is computed in `_compute_weights_aa`
+
+Before (`wt_max` is NOT computed inside `_compute_weights_aa`):
+```
+cd /tmp/pth/interpolate_vec_uint8/ && python -u check_interp2.py
+
+Num threads: 1
+
+PIL version:  9.0.0.post1
+[------------------------------------------------ Resize ------------------------------------------------]
+                                                                          |  torch (2.1.0a0+git0c58e8a) PR
+1 threads: -----------------------------------------------------------------------------------------------
+      3 torch.float32 channels_first bilinear 700 -> (224, 224) aa=True   |              2586.9
+      4 torch.float32 channels_first bilinear 700 -> (224, 224) aa=True   |              3437.1
+      3 torch.float32 channels_first bilinear 700 -> (224, 224) aa=False  |              1832.3
+      4 torch.float32 channels_first bilinear 700 -> (224, 224) aa=False  |               996.8
+      3 torch.float32 channels_first bilinear 520 -> (224, 224) aa=True   |              1657.1
+      4 torch.float32 channels_first bilinear 520 -> (224, 224) aa=True   |              2195.9
+      3 torch.float32 channels_first bilinear 520 -> (224, 224) aa=False  |              1416.8
+      4 torch.float32 channels_first bilinear 520 -> (224, 224) aa=False  |               988.3
+      3 torch.float32 channels_first bilinear 256 -> (224, 224) aa=True   |               621.0
+      4 torch.float32 channels_first bilinear 256 -> (224, 224) aa=True   |               816.9
+      3 torch.float32 channels_first bilinear 256 -> (224, 224) aa=False  |              1049.6
+      4 torch.float32 channels_first bilinear 256 -> (224, 224) aa=False  |               967.8
+
+Times are in microseconds (us).
+```
+
+Before (`wt_max` is computed inside `_compute_weights_aa`):
+```
+Num threads: 1
+
+PIL version:  9.0.0.post1
+[------------------------------------------------ Resize ------------------------------------------------]
+                                                                          |  torch (2.1.0a0+git0c58e8a) PR
+1 threads: -----------------------------------------------------------------------------------------------
+      3 torch.float32 channels_first bilinear 700 -> (224, 224) aa=True   |              2586.5
+      4 torch.float32 channels_first bilinear 700 -> (224, 224) aa=True   |              3460.0
+      3 torch.float32 channels_first bilinear 700 -> (224, 224) aa=False  |              1823.1
+      4 torch.float32 channels_first bilinear 700 -> (224, 224) aa=False  |               986.2
+      3 torch.float32 channels_first bilinear 520 -> (224, 224) aa=True   |              1668.1
+      4 torch.float32 channels_first bilinear 520 -> (224, 224) aa=True   |              2207.0
+      3 torch.float32 channels_first bilinear 520 -> (224, 224) aa=False  |              1415.0
+      4 torch.float32 channels_first bilinear 520 -> (224, 224) aa=False  |               975.7
+      3 torch.float32 channels_first bilinear 256 -> (224, 224) aa=True   |               624.4
+      4 torch.float32 channels_first bilinear 256 -> (224, 224) aa=True   |               820.1
+      3 torch.float32 channels_first bilinear 256 -> (224, 224) aa=False  |              1048.9
+      4 torch.float32 channels_first bilinear 256 -> (224, 224) aa=False  |               955.9
+
+Times are in microseconds (us).
+```
+
+- Code cosmetics:
+before:
+```
+PIL version:  9.0.0.post1
+[----------------------------------------------------------- Resize ----------------------------------------------------------]
+                                                                      |  Pillow (9.0.0.post1)  |  torch (2.1.0a0+git5309c44) PR
+1 threads: --------------------------------------------------------------------------------------------------------------------
+      3 torch.uint8 channels_last bilinear 256 -> (224, 224) aa=True  |         127.9          |              292.4
+      4 torch.uint8 channels_last bilinear 256 -> (224, 224) aa=True  |                        |              140.7
+      3 torch.uint8 channels_last bilinear 256 -> (256, 224) aa=True  |          91.8          |              263.2
+      4 torch.uint8 channels_last bilinear 256 -> (256, 224) aa=True  |                        |               99.2
+      3 torch.uint8 channels_last bilinear 256 -> (224, 256) aa=True  |          51.6          |              218.7
+      4 torch.uint8 channels_last bilinear 256 -> (224, 256) aa=True  |                        |               55.3
+
+Times are in microseconds (us).
+```
+after:
+```
+PIL version:  9.0.0.post1
+[----------------------------------------------------------- Resize ----------------------------------------------------------]
+                                                                      |  Pillow (9.0.0.post1)  |  torch (2.1.0a0+git0c58e8a) PR
+1 threads: --------------------------------------------------------------------------------------------------------------------
+      3 torch.uint8 channels_last bilinear 256 -> (224, 224) aa=True  |         127.8          |              296.7
+      4 torch.uint8 channels_last bilinear 256 -> (224, 224) aa=True  |                        |              144.9
+      3 torch.uint8 channels_last bilinear 256 -> (256, 224) aa=True  |          92.7          |              269.1
+      4 torch.uint8 channels_last bilinear 256 -> (256, 224) aa=True  |                        |              105.2
+      3 torch.uint8 channels_last bilinear 256 -> (224, 256) aa=True  |          51.5          |              215.4
+      4 torch.uint8 channels_last bilinear 256 -> (224, 256) aa=True  |                        |               52.6
+
+Times are in microseconds (us).
+```
+
+- Check "// There is no much perf gain using more detailed condition // if (num_channels == 3) {" (ImagingResampleVerticalConvolution8u)
+
+Condition `if (num_channels == 3 && ids_min + j + data_size * i + 4 >= in_max_size) {`
+```
+```
+
+Condition `if (num_channels == 3) {`
+```
+```
+
+
+
 ## Run benchmarks: nightly vs PR
 
 ```
@@ -1306,7 +1402,7 @@ int output = 1 << (weights_precision - 1);
 output += src[0] * wts[0];
 output += src[1] * wts[1];
 ...
-output += src] * wts];
+output += src[K-1] * wts[K-1];
 output = (output >> weights_precision);
 
 dst[o] = (uint8) clamp(output, 0, 255);
@@ -1656,9 +1752,9 @@ output = [
 ```
 where
 ```
-oR[j, i] = r[ymin[j], i] * w[j, 0] + r[ymin[j] + 1, i] * w[j, 1] + ... + r[ymin[j] + K - 1] * w[j, K - 1]
-oG[j, i] = g[ymin[j], i] * w[j, 0] + g[ymin[j] + 1, i] * w[j, 1] + ... + g[ymin[j] + K - 1] * w[j, K - 1]
-oB[j, i] = b[ymin[j], i] * w[j, 0] + b[ymin[j] + 1, i] * w[j, 1] + ... + b[ymin[j] + K - 1] * w[j, K - 1]
+oR[j, i] = r[ymin[j], i] * w[j, 0] + r[ymin[j] + 1, i] * w[j, 1] + ... + r[ymin[j] + K - 1, i] * w[j, K - 1]
+oG[j, i] = g[ymin[j], i] * w[j, 0] + g[ymin[j] + 1, i] * w[j, 1] + ... + g[ymin[j] + K - 1, i] * w[j, K - 1]
+oB[j, i] = b[ymin[j], i] * w[j, 0] + b[ymin[j] + 1, i] * w[j, 1] + ... + b[ymin[j] + K - 1, i] * w[j, K - 1]
 ```
 
 ### Vectorized version

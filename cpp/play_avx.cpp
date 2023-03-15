@@ -289,7 +289,7 @@ void test_mm_cvtepu8_epi32() {
         input[0],
         input[1],
         input[2],
-        0
+        input[3],
     };
 
     auto d1 = _mm_cvtsi32_si128(*(int *) data);
@@ -380,6 +380,61 @@ void test__mm256_castsi256_si128__mm_cvtsi128_si32() {
 }
 
 
+void test_horiz_pass_block4_load_data() {
+    char data[32] = {
+        1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
+        17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32
+    };
+    auto tmp = _mm_loadu_si128((__m128i *)data);
+    print_m128i(tmp, "tmp");
+
+    auto source = _mm256_insertf128_si256(_mm256_castsi128_si256(tmp), tmp, 1);
+    print_m256i(source, "source");
+
+    const auto mask_hl = _mm256_set_epi8(
+      -1, 15, -1, 11, -1, 14, -1, 10, -1, 13, -1, 9, -1, 12, -1, 8,
+      -1, 7, -1, 3, -1, 6, -1, 2, -1, 5, -1, 1, -1, 4, -1, 0
+    );
+
+    auto pix = _mm256_shuffle_epi8(source, mask_hl);
+    print_m256i(pix, "pix");
+}
+
+
+void test__mm_set1_epi32() {
+    char k[32] = {
+        1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
+        17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32
+    };
+    auto mmk = _mm_set1_epi32(*(int32_t*)&k[0]);
+    print_m128i(mmk, "mmk");
+
+}
+
+
+void test__mm_unpacklo_epi8__mm_unpacklo_epi8() {
+    char data[32] = {
+        1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
+        17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32
+    };
+
+    auto source1 = _mm_loadl_epi64((__m128i*)(data));
+    print_m128i(source1, "source1");
+    auto source2 = _mm_loadl_epi64((__m128i*)(data + 16));
+    print_m128i(source2, "source2");
+
+    auto source = _mm_unpacklo_epi8(source1, source2);
+    print_m128i(source, "source");
+
+    const auto zero = _mm_setzero_si128();
+    auto pix = _mm_unpacklo_epi8(source, zero);
+    print_m128i(pix, "pix");
+
+    pix = _mm_unpackhi_epi8(source, zero);
+    print_m128i(pix, "pix");
+}
+
+
 int main(int argc, char** argv)
 {
     // test_1();
@@ -390,7 +445,7 @@ int main(int argc, char** argv)
 
     // test_mask_load();
 
-    // test_mm_cvtepu8_epi32();
+    test_mm_cvtepu8_epi32();
 
     // test_mm256_load_si256();
 
@@ -402,7 +457,13 @@ int main(int argc, char** argv)
 
     // test__mm256_cvtsi256_si32();
 
-    test__mm256_castsi256_si128__mm_cvtsi128_si32();
+    // test__mm256_castsi256_si128__mm_cvtsi128_si32();
+
+    // test_horiz_pass_block4_load_data();
+
+    // test__mm_set1_epi32();
+
+    // test__mm_unpacklo_epi8__mm_unpacklo_epi8();
 
     return 0;
 }

@@ -57,29 +57,30 @@ def main(min_run_time=5.0, debug=False, use_perf=False, check_consistency=True):
 
     torch.manual_seed(12)
 
-    # for mf in ["channels_last", "channels_first"]:
-    for mf in ["channels_last", ]:
-        # for size in [256, 520, 712]:
+    for mf in ["channels_last", "channels_first"]:
+    # for mf in ["channels_last", ]:
+        for size in [256, 520, 712]:
         # for size in [256, 520]:
         # for size in [256, ]:
         # for size in [700, 520, 256]:
-        for size in [256, ]:
+        # for size in [256, ]:
         # for size in [270, ]:
             for osize, aa, mode in [
-                ((224, 224), True, "bilinear"),
-                # # ((224, 224), False, "bilinear"),
+                # ((224, 224), True, "bilinear"),
+                # ((224, 224), False, "bilinear"),
                 # ((32, 32), True, "bilinear"),
                 # # ((32, 32), False, "bilinear"),
 
                 # Horizontal only
-                ((size, int(size * 224 / 256)), True, "bilinear"),
+                # ((size, int(size * 224 / 256)), True, "bilinear"),
                 # ((size, 224), True, "bilinear"),
-                ((size, 227), True, "bilinear"),
+                # ((size, 227), True, "bilinear"),
                 # ((size, 224), False, "bilinear"),
                 # Vertical only
                 ((int(size * 224 / 256), size), True, "bilinear"),
                 ((227, size), True, "bilinear"),
-                # ((224, size), False, "bilinear"),
+                ((224, size), False, "bilinear"),
+                ((32, size), False, "bilinear"),
             ]:
                 for c, dtype in [
                     (3, torch.uint8),

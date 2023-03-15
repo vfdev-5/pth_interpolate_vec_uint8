@@ -4,6 +4,7 @@ perf.data
 pillow-simd
 check_resize_avx_rgb
 check_resize_avx_rgba
+uint32_vs_memcpy
 play_avx
 
 # Byte-compiled / optimized / DLL files
