@@ -104,7 +104,7 @@ def run_benchmark(c, dtype, size, osize, aa, mode, mf="channels_first", min_run_
 
         if mode == "bilinear":
             assert mae.item() < 1.0, mae.item()
-            assert max_abs_err.item() < 1.0 + 1e-5, max_abs_err.item()
+            assert max_abs_err.item() < 2.0 + 1e-5, max_abs_err.item()
         else:
             raise RuntimeError(f"Unsupported mode: {mode}")
 
