@@ -664,10 +664,6 @@ Times are in microseconds (us).
 
 ## Run benchmarks: nightly vs PR
 
-```
-wget https://raw.githubusercontent.com/pytorch/vision/main/torchvision/transforms/functional_tensor.py -O torchvision_functional_tensor.py
-```
-
 ### On nightly
 ```
 python -u run_bench_interp.py "output/$(date "+%Y%m%d-%H%M%S")-nightly.pkl" --tag=nightly
@@ -2155,4 +2151,4 @@ PIL version:  9.0.0.post1
       4 torch.uint8 channels_first bilinear 256 -> (224, 256) aa=True   |                        |              187.4
 ```
 
-- 
+-
