@@ -433,12 +433,233 @@ Times are in microseconds (us).
 
 Condition `if (num_channels == 3 && ids_min + j + data_size * i + 4 >= in_max_size) {`
 ```
+PIL version:  9.0.0.post1
+[------------------------------------------------------------ Resize -----------------------------------------------------------]
+                                                                        |  Pillow (9.0.0.post1)  |  torch (2.1.0a0+git0c58e8a) PR
+1 threads: ----------------------------------------------------------------------------------------------------------------------
+      3 torch.uint8 channels_last bilinear 256 -> (224, 256) aa=True    |          51.9          |                53.7
+      4 torch.uint8 channels_last bilinear 256 -> (224, 256) aa=True    |                        |                58.1
+      3 torch.uint8 channels_last bilinear 256 -> (227, 256) aa=True    |          51.7          |                54.0
+      4 torch.uint8 channels_last bilinear 256 -> (227, 256) aa=True    |                        |                57.5
+      3 torch.uint8 channels_last bilinear 256 -> (224, 256) aa=False   |                        |                49.1
+      4 torch.uint8 channels_last bilinear 256 -> (224, 256) aa=False   |                        |                52.5
+      3 torch.uint8 channels_last bilinear 256 -> (32, 256) aa=False    |                        |                18.7
+      4 torch.uint8 channels_last bilinear 256 -> (32, 256) aa=False    |                        |                19.2
+      3 torch.uint8 channels_last bilinear 520 -> (455, 520) aa=True    |         179.5          |               154.2
+      4 torch.uint8 channels_last bilinear 520 -> (455, 520) aa=True    |                        |               167.1
+      3 torch.uint8 channels_last bilinear 520 -> (227, 520) aa=True    |         159.6          |               132.5
+      4 torch.uint8 channels_last bilinear 520 -> (227, 520) aa=True    |                        |               135.8
+      3 torch.uint8 channels_last bilinear 520 -> (224, 520) aa=False   |                        |                77.2
+      4 torch.uint8 channels_last bilinear 520 -> (224, 520) aa=False   |                        |                83.8
+      3 torch.uint8 channels_last bilinear 520 -> (32, 520) aa=False    |                        |                23.2
+      4 torch.uint8 channels_last bilinear 520 -> (32, 520) aa=False    |                        |                24.3
+      3 torch.uint8 channels_last bilinear 712 -> (623, 712) aa=True    |         320.7          |               256.0
+      4 torch.uint8 channels_last bilinear 712 -> (623, 712) aa=True    |                        |               287.9
+      3 torch.uint8 channels_last bilinear 712 -> (227, 712) aa=True    |         260.7          |               190.2
+      4 torch.uint8 channels_last bilinear 712 -> (227, 712) aa=True    |                        |               208.3
+      3 torch.uint8 channels_last bilinear 712 -> (224, 712) aa=False   |                        |                96.0
+      4 torch.uint8 channels_last bilinear 712 -> (224, 712) aa=False   |                        |               104.8
+      3 torch.uint8 channels_last bilinear 712 -> (32, 712) aa=False    |                        |                25.8
+      4 torch.uint8 channels_last bilinear 712 -> (32, 712) aa=False    |                        |                27.3
+      3 torch.uint8 channels_first bilinear 256 -> (224, 256) aa=True   |          51.7          |               228.2
+      4 torch.uint8 channels_first bilinear 256 -> (224, 256) aa=True   |                        |               200.5
+      3 torch.uint8 channels_first bilinear 256 -> (227, 256) aa=True   |          51.7          |               226.7
+      4 torch.uint8 channels_first bilinear 256 -> (227, 256) aa=True   |                        |               197.1
+      3 torch.uint8 channels_first bilinear 256 -> (224, 256) aa=False  |                        |               219.1
+      4 torch.uint8 channels_first bilinear 256 -> (224, 256) aa=False  |                        |               210.0
+      3 torch.uint8 channels_first bilinear 256 -> (32, 256) aa=False   |                        |               109.5
+      4 torch.uint8 channels_first bilinear 256 -> (32, 256) aa=False   |                        |                57.1
+      3 torch.uint8 channels_first bilinear 520 -> (455, 520) aa=True   |         179.2          |               840.9
+      4 torch.uint8 channels_first bilinear 520 -> (455, 520) aa=True   |                        |               736.1
+      3 torch.uint8 channels_first bilinear 520 -> (227, 520) aa=True   |         164.1          |               629.5
+      4 torch.uint8 channels_first bilinear 520 -> (227, 520) aa=True   |                        |               446.9
+      3 torch.uint8 channels_first bilinear 520 -> (224, 520) aa=False  |                        |               565.5
+      4 torch.uint8 channels_first bilinear 520 -> (224, 520) aa=False  |                        |               405.1
+      3 torch.uint8 channels_first bilinear 520 -> (32, 520) aa=False   |                        |               358.7
+      4 torch.uint8 channels_first bilinear 520 -> (32, 520) aa=False   |                        |               130.1
+      3 torch.uint8 channels_first bilinear 712 -> (623, 712) aa=True   |         318.9          |              1560.8
+      4 torch.uint8 channels_first bilinear 712 -> (623, 712) aa=True   |                        |              1343.6
+      3 torch.uint8 channels_first bilinear 712 -> (227, 712) aa=True   |         261.4          |              1037.8
+      4 torch.uint8 channels_first bilinear 712 -> (227, 712) aa=True   |                        |               693.0
+      3 torch.uint8 channels_first bilinear 712 -> (224, 712) aa=False  |                        |               928.3
+      4 torch.uint8 channels_first bilinear 712 -> (224, 712) aa=False  |                        |               577.9
+      3 torch.uint8 channels_first bilinear 712 -> (32, 712) aa=False   |                        |               636.2
+      4 torch.uint8 channels_first bilinear 712 -> (32, 712) aa=False   |                        |               207.8
+
+Times are in microseconds (us).
 ```
 
 Condition `if (num_channels == 3) {`
 ```
+PIL version:  9.0.0.post1
+[------------------------------------------------------------ Resize -----------------------------------------------------------]
+                                                                        |  Pillow (9.0.0.post1)  |  torch (2.1.0a0+git0c58e8a) PR
+1 threads: ----------------------------------------------------------------------------------------------------------------------
+      3 torch.uint8 channels_last bilinear 256 -> (224, 256) aa=True    |          52.2          |                55.3
+      4 torch.uint8 channels_last bilinear 256 -> (224, 256) aa=True    |                        |                57.7
+      3 torch.uint8 channels_last bilinear 256 -> (227, 256) aa=True    |          54.2          |                55.0
+      4 torch.uint8 channels_last bilinear 256 -> (227, 256) aa=True    |                        |                57.9
+      3 torch.uint8 channels_last bilinear 256 -> (224, 256) aa=False   |                        |                50.0
+      4 torch.uint8 channels_last bilinear 256 -> (224, 256) aa=False   |                        |                52.1
+      3 torch.uint8 channels_last bilinear 256 -> (32, 256) aa=False    |                        |                18.7
+      4 torch.uint8 channels_last bilinear 256 -> (32, 256) aa=False    |                        |                19.2
+      3 torch.uint8 channels_last bilinear 520 -> (455, 520) aa=True    |         179.5          |               153.6
+      4 torch.uint8 channels_last bilinear 520 -> (455, 520) aa=True    |                        |               166.5
+      3 torch.uint8 channels_last bilinear 520 -> (227, 520) aa=True    |         161.9          |               132.1
+      4 torch.uint8 channels_last bilinear 520 -> (227, 520) aa=True    |                        |               136.7
+      3 torch.uint8 channels_last bilinear 520 -> (224, 520) aa=False   |                        |                77.2
+      4 torch.uint8 channels_last bilinear 520 -> (224, 520) aa=False   |                        |                83.8
+      3 torch.uint8 channels_last bilinear 520 -> (32, 520) aa=False    |                        |                23.2
+      4 torch.uint8 channels_last bilinear 520 -> (32, 520) aa=False    |                        |                24.1
+      3 torch.uint8 channels_last bilinear 712 -> (623, 712) aa=True    |         317.9          |               257.4
+      4 torch.uint8 channels_last bilinear 712 -> (623, 712) aa=True    |                        |               286.0
+      3 torch.uint8 channels_last bilinear 712 -> (227, 712) aa=True    |         261.6          |               192.8
+      4 torch.uint8 channels_last bilinear 712 -> (227, 712) aa=True    |                        |               209.8
+      3 torch.uint8 channels_last bilinear 712 -> (224, 712) aa=False   |                        |                96.4
+      4 torch.uint8 channels_last bilinear 712 -> (224, 712) aa=False   |                        |               104.6
+      3 torch.uint8 channels_last bilinear 712 -> (32, 712) aa=False    |                        |                25.9
+      4 torch.uint8 channels_last bilinear 712 -> (32, 712) aa=False    |                        |                27.2
+      3 torch.uint8 channels_first bilinear 256 -> (224, 256) aa=True   |          52.0          |               223.4
+      4 torch.uint8 channels_first bilinear 256 -> (224, 256) aa=True   |                        |               188.1
+      3 torch.uint8 channels_first bilinear 256 -> (227, 256) aa=True   |          52.0          |               223.1
+      4 torch.uint8 channels_first bilinear 256 -> (227, 256) aa=True   |                        |               179.4
+      3 torch.uint8 channels_first bilinear 256 -> (224, 256) aa=False  |                        |               216.8
+      4 torch.uint8 channels_first bilinear 256 -> (224, 256) aa=False  |                        |               176.8
+      3 torch.uint8 channels_first bilinear 256 -> (32, 256) aa=False   |                        |               109.9
+      4 torch.uint8 channels_first bilinear 256 -> (32, 256) aa=False   |                        |                53.1
+      3 torch.uint8 channels_first bilinear 520 -> (455, 520) aa=True   |         179.0          |               837.4
+      4 torch.uint8 channels_first bilinear 520 -> (455, 520) aa=True   |                        |               652.0
+      3 torch.uint8 channels_first bilinear 520 -> (227, 520) aa=True   |         164.1          |               620.4
+      4 torch.uint8 channels_first bilinear 520 -> (227, 520) aa=True   |                        |               415.1
+      3 torch.uint8 channels_first bilinear 520 -> (224, 520) aa=False  |                        |               565.5
+      4 torch.uint8 channels_first bilinear 520 -> (224, 520) aa=False  |                        |               358.9
+      3 torch.uint8 channels_first bilinear 520 -> (32, 520) aa=False   |                        |               358.0
+      4 torch.uint8 channels_first bilinear 520 -> (32, 520) aa=False   |                        |               121.7
+      3 torch.uint8 channels_first bilinear 712 -> (623, 712) aa=True   |         320.3          |              1546.3
+      4 torch.uint8 channels_first bilinear 712 -> (623, 712) aa=True   |                        |              1209.9
+      3 torch.uint8 channels_first bilinear 712 -> (227, 712) aa=True   |         278.5          |              1027.3
+      4 torch.uint8 channels_first bilinear 712 -> (227, 712) aa=True   |                        |               619.5
+      3 torch.uint8 channels_first bilinear 712 -> (224, 712) aa=False  |                        |               922.6
+      4 torch.uint8 channels_first bilinear 712 -> (224, 712) aa=False  |                        |               510.9
+      3 torch.uint8 channels_first bilinear 712 -> (32, 712) aa=False   |                        |               635.3
+      4 torch.uint8 channels_first bilinear 712 -> (32, 712) aa=False   |                        |               193.8
+
+Times are in microseconds (us).
 ```
 
+
+- Check if we really need template for vertical pass. Godbolt assembly code is the same with constexpr or just const num_channels: see godbolt_source_vertpass.md
+
+With templated num_channels:
+```
+Num threads: 1
+
+PIL version:  9.0.0.post1
+[------------------------------------------------------------ Resize -----------------------------------------------------------]
+                                                                        |  Pillow (9.0.0.post1)  |  torch (2.1.0a0+gitcc42a3f) PR
+1 threads: ----------------------------------------------------------------------------------------------------------------------
+      3 torch.uint8 channels_last bilinear 256 -> (224, 224) aa=True    |         127.6          |              159.4
+      4 torch.uint8 channels_last bilinear 256 -> (224, 224) aa=True    |                        |              150.0
+      3 torch.uint8 channels_last bilinear 256 -> (224, 224) aa=False   |                        |              148.3
+      4 torch.uint8 channels_last bilinear 256 -> (224, 224) aa=False   |                        |              135.6
+      3 torch.uint8 channels_last bilinear 256 -> (256, 224) aa=True    |          91.2          |              116.5
+      4 torch.uint8 channels_last bilinear 256 -> (256, 224) aa=True    |                        |              103.3
+      3 torch.uint8 channels_last bilinear 256 -> (256, 224) aa=False   |                        |              110.5
+      4 torch.uint8 channels_last bilinear 256 -> (256, 224) aa=False   |                        |               96.4
+      3 torch.uint8 channels_last bilinear 256 -> (224, 256) aa=True    |          52.3          |               55.9
+      4 torch.uint8 channels_last bilinear 256 -> (224, 256) aa=True    |                        |               58.8
+      3 torch.uint8 channels_last bilinear 256 -> (224, 256) aa=False   |                        |               50.6
+      4 torch.uint8 channels_last bilinear 256 -> (224, 256) aa=False   |                        |               53.5
+      3 torch.uint8 channels_first bilinear 256 -> (224, 224) aa=True   |         129.2          |              302.4
+      4 torch.uint8 channels_first bilinear 256 -> (224, 224) aa=True   |                        |              276.7
+      3 torch.uint8 channels_first bilinear 256 -> (224, 224) aa=False  |                        |              289.3
+      4 torch.uint8 channels_first bilinear 256 -> (224, 224) aa=False  |                        |              268.1
+      3 torch.uint8 channels_first bilinear 256 -> (256, 224) aa=True   |          90.7          |              270.3
+      4 torch.uint8 channels_first bilinear 256 -> (256, 224) aa=True   |                        |              260.0
+      3 torch.uint8 channels_first bilinear 256 -> (256, 224) aa=False  |                        |              262.7
+      4 torch.uint8 channels_first bilinear 256 -> (256, 224) aa=False  |                        |              258.9
+      3 torch.uint8 channels_first bilinear 256 -> (224, 256) aa=True   |          53.9          |              225.4
+      4 torch.uint8 channels_first bilinear 256 -> (224, 256) aa=True   |                        |              214.8
+      3 torch.uint8 channels_first bilinear 256 -> (224, 256) aa=False  |                        |              220.4
+      4 torch.uint8 channels_first bilinear 256 -> (224, 256) aa=False  |                        |              205.1
+
+Times are in microseconds (us).
+```
+
+Without templated num_channels:
+```
+
+Num threads: 1
+
+PIL version:  9.0.0.post1
+[------------------------------------------------------------ Resize -----------------------------------------------------------]
+                                                                        |  Pillow (9.0.0.post1)  |  torch (2.1.0a0+gitcc42a3f) PR
+1 threads: ----------------------------------------------------------------------------------------------------------------------
+      3 torch.uint8 channels_last bilinear 256 -> (224, 224) aa=True    |         128.9          |              153.4
+      4 torch.uint8 channels_last bilinear 256 -> (224, 224) aa=True    |                        |              144.3
+      3 torch.uint8 channels_last bilinear 256 -> (224, 224) aa=False   |                        |              141.8
+      4 torch.uint8 channels_last bilinear 256 -> (224, 224) aa=False   |                        |              131.4
+      3 torch.uint8 channels_last bilinear 256 -> (256, 224) aa=True    |          91.1          |              113.9
+      4 torch.uint8 channels_last bilinear 256 -> (256, 224) aa=True    |                        |              102.9
+      3 torch.uint8 channels_last bilinear 256 -> (256, 224) aa=False   |                        |              106.1
+      4 torch.uint8 channels_last bilinear 256 -> (256, 224) aa=False   |                        |               94.0
+      3 torch.uint8 channels_last bilinear 256 -> (224, 256) aa=True    |          52.4          |               52.8
+      4 torch.uint8 channels_last bilinear 256 -> (224, 256) aa=True    |                        |               55.4
+      3 torch.uint8 channels_last bilinear 256 -> (224, 256) aa=False   |                        |               48.5
+      4 torch.uint8 channels_last bilinear 256 -> (224, 256) aa=False   |                        |               49.8
+      3 torch.uint8 channels_first bilinear 256 -> (224, 224) aa=True   |         127.8          |              296.8
+      4 torch.uint8 channels_first bilinear 256 -> (224, 224) aa=True   |                        |              251.4
+      3 torch.uint8 channels_first bilinear 256 -> (224, 224) aa=False  |                        |              285.5
+      4 torch.uint8 channels_first bilinear 256 -> (224, 224) aa=False  |                        |              239.6
+      3 torch.uint8 channels_first bilinear 256 -> (256, 224) aa=True   |          91.8          |              269.8
+      4 torch.uint8 channels_first bilinear 256 -> (256, 224) aa=True   |                        |              228.4
+      3 torch.uint8 channels_first bilinear 256 -> (256, 224) aa=False  |                        |              261.1
+      4 torch.uint8 channels_first bilinear 256 -> (256, 224) aa=False  |                        |              222.6
+      3 torch.uint8 channels_first bilinear 256 -> (224, 256) aa=True   |          52.6          |              220.5
+      4 torch.uint8 channels_first bilinear 256 -> (224, 256) aa=True   |                        |              183.5
+      3 torch.uint8 channels_first bilinear 256 -> (224, 256) aa=False  |                        |              216.1
+      4 torch.uint8 channels_first bilinear 256 -> (224, 256) aa=False  |                        |              178.7
+
+Times are in microseconds (us).
+```
+
+- Check templated num_channels in horizontal pass
+
+Without templated num_channels
+```
+Num threads: 1
+
+PIL version:  9.0.0.post1
+[------------------------------------------------------------ Resize -----------------------------------------------------------]
+                                                                        |  Pillow (9.0.0.post1)  |  torch (2.1.0a0+gitcc42a3f) PR
+1 threads: ----------------------------------------------------------------------------------------------------------------------
+      3 torch.uint8 channels_last bilinear 256 -> (224, 224) aa=True    |         128.8          |              161.7
+      4 torch.uint8 channels_last bilinear 256 -> (224, 224) aa=True    |                        |              158.6
+      3 torch.uint8 channels_last bilinear 256 -> (224, 224) aa=False   |                        |              150.6
+      4 torch.uint8 channels_last bilinear 256 -> (224, 224) aa=False   |                        |              145.8
+      3 torch.uint8 channels_last bilinear 256 -> (256, 224) aa=True    |          91.7          |              122.1
+      4 torch.uint8 channels_last bilinear 256 -> (256, 224) aa=True    |                        |              116.5
+      3 torch.uint8 channels_last bilinear 256 -> (256, 224) aa=False   |                        |              113.6
+      4 torch.uint8 channels_last bilinear 256 -> (256, 224) aa=False   |                        |              107.7
+      3 torch.uint8 channels_last bilinear 256 -> (224, 256) aa=True    |          52.7          |               53.7
+      4 torch.uint8 channels_last bilinear 256 -> (224, 256) aa=True    |                        |               56.1
+      3 torch.uint8 channels_last bilinear 256 -> (224, 256) aa=False   |                        |               49.8
+      4 torch.uint8 channels_last bilinear 256 -> (224, 256) aa=False   |                        |               52.1
+      3 torch.uint8 channels_first bilinear 256 -> (224, 224) aa=True   |         128.8          |              312.7
+      4 torch.uint8 channels_first bilinear 256 -> (224, 224) aa=True   |                        |              267.0
+      3 torch.uint8 channels_first bilinear 256 -> (224, 224) aa=False  |                        |              300.2
+      4 torch.uint8 channels_first bilinear 256 -> (224, 224) aa=False  |                        |              254.9
+      3 torch.uint8 channels_first bilinear 256 -> (256, 224) aa=True   |          91.8          |              283.8
+      4 torch.uint8 channels_first bilinear 256 -> (256, 224) aa=True   |                        |              246.5
+      3 torch.uint8 channels_first bilinear 256 -> (256, 224) aa=False  |                        |              277.1
+      4 torch.uint8 channels_first bilinear 256 -> (256, 224) aa=False  |                        |              238.0
+      3 torch.uint8 channels_first bilinear 256 -> (224, 256) aa=True   |          53.3          |              225.8
+      4 torch.uint8 channels_first bilinear 256 -> (224, 256) aa=True   |                        |              187.4
+      3 torch.uint8 channels_first bilinear 256 -> (224, 256) aa=False  |                        |              219.3
+      4 torch.uint8 channels_first bilinear 256 -> (224, 256) aa=False  |                        |              181.6
+
+Times are in microseconds (us).
+```
 
 
 ## Run benchmarks: nightly vs PR
@@ -479,14 +700,6 @@ python verif_interp2.py verif_expected --is_ref=False
 ```
 
 ## Some results
-
-### 13/03/2023
-
-- Various optims and fixes
-
-```
-
-```
 
 
 ### 02/03/2023
@@ -1916,3 +2129,30 @@ out01_hh = out01_hh >> weights_precision
 ```
 (a b c d) -> x_uint32
 ```
+
+
+## Vectorize `void basic_loop_aa_vertical<uint8_t>` from `UpSampleKernel.cpp`
+
+- Baseline:
+```
+PIL version:  9.0.0.post1
+[----------------------------------------------- Resize ----------------------------------------------]
+                                                                       |  torch (2.1.0a0+git0968a5d) PR
+1 threads: --------------------------------------------------------------------------------------------
+      4 torch.uint8 channels_last bilinear 256 -> (224, 256) aa=True   |              707.5
+      4 torch.uint8 channels_first bilinear 256 -> (224, 256) aa=True  |              719.9
+
+Times are in microseconds (us).
+```
+
+vs Vectorized version `ImagingResampleVerticalConvolution8u`:
+```
+PIL version:  9.0.0.post1
+[------------------------------------------------------------ Resize -----------------------------------------------------------]
+                                                                        |  Pillow (9.0.0.post1)  |  torch (2.1.0a0+gitcc42a3f) PR
+1 threads: ----------------------------------------------------------------------------------------------------------------------
+      4 torch.uint8 channels_last bilinear 256 -> (224, 256) aa=True    |                        |               56.1
+      4 torch.uint8 channels_first bilinear 256 -> (224, 256) aa=True   |                        |              187.4
+```
+
+- 
