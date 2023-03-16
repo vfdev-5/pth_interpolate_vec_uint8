@@ -50,7 +50,7 @@ def main(
         print("output_filepath:", output_filepath)
         print("perf_files:", perf_files, type(perf_files))
         print("col1:", col1, type(col1))
-        print("col1:", col2, type(col2))
+        print("col2:", col2, type(col2))
         print("description:", description, type(description))
 
     ab_results = []
@@ -68,8 +68,6 @@ def main(
     groups_iter = iter(grouped_results.values())
     group = next(groups_iter)
 
-    col1 = "torch (2.1.0a0+git0968a5d) PR"
-    col2 = "torch (2.1.0a0+git5309c44) nightly"
     if description is None:
         description = f"Speed-up: {col1} vs {col2}"
 
@@ -83,13 +81,13 @@ def main(
 
     for measurement in group:
         if debug:
-            print(measurement.task_spec.description)
+            print("measurement.task_spec.description:", measurement.task_spec.description)
 
         if measurement.task_spec.description == col1:
             v1 = measurement.median
             sub_label = measurement.task_spec.sub_label
             if debug:
-                print(col1, v1, sub_label)
+                print("Matched col1:", col1, v1, sub_label)
 
         measurement2 = None
         for m2 in group:
@@ -98,7 +96,7 @@ def main(
             if d2 == col2 and sl2 == sub_label:
                 v2 = m2.median
                 if debug:
-                    print(col2, v2)
+                    print("Matched col2:", col2, v2)
                 measurement2 = m2
                 break
 
@@ -109,7 +107,7 @@ def main(
                 updated_group.append(measurement2)
             r = v2 / v1 * scale
             if debug:
-                print("->", r)
+                print("ratio is: ", r)
             v1 = None
             v2 = None
             sub_label = None
@@ -126,12 +124,17 @@ def main(
             r = None
             updated_group.append(speedup_measurement)
 
+    assert len(updated_group) > len(group), "Seems like nothing was added. Run with --debug"
+
     table = CustomizedTable(
         updated_group,
         compare._colorize,
         compare._trim_significant_figures,
         compare._highlight_warnings
     )
+
+    if debug:
+        print(table.render())
 
     with output_filepath.open("w") as h:
         h.write(table.render())
