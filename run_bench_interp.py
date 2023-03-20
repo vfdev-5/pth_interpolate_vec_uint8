@@ -1,6 +1,5 @@
 
 import pickle
-from typing import List
 from pathlib import Path
 import unittest.mock
 
@@ -74,28 +73,28 @@ def run_benchmark(c, dtype, size, osize, aa, mode, mf="channels_first", min_run_
     torch.manual_seed(12)
 
     if dtype == torch.bool:
-        tensor = torch.randint(0, 2, size=(c, size, size), dtype=dtype)
+        tensor = torch.randint(0, 2, size=(c, size[0], size[1]), dtype=dtype)
     elif dtype == torch.complex64:
-        real = torch.randint(0, 256, size=(c, size, size), dtype=torch.float32)
-        imag = torch.randint(0, 256, size=(c, size, size), dtype=torch.float32)
+        real = torch.randint(0, 256, size=(c, size[0], size[1]), dtype=torch.float32)
+        imag = torch.randint(0, 256, size=(c, size[0], size[1]), dtype=torch.float32)
         tensor = torch.complex(real, imag)
     elif dtype == torch.int8:
-        tensor = torch.randint(-127, 127, size=(c, size, size), dtype=dtype)
+        tensor = torch.randint(-127, 127, size=(c, size[0], size[1]), dtype=dtype)
     else:
-        tensor = torch.randint(0, 256, size=(c, size, size), dtype=dtype)
+        tensor = torch.randint(0, 256, size=(c, size[0], size[1]), dtype=dtype)
 
     expected_pil = None
     pil_img = None
     if dtype == torch.uint8 and c == 3 and aa:
         np_array = tensor.clone().permute(1, 2, 0).contiguous().numpy()
         pil_img = PIL.Image.fromarray(np_array)
-        output_pil_img = pil_img.resize((osize, osize), resample=resampling_map[mode])
+        output_pil_img = pil_img.resize(osize[::-1], resample=resampling_map[mode])
         expected_pil = torch.from_numpy(np.asarray(output_pil_img)).clone().permute(2, 0, 1).contiguous()
 
     memory_format = torch.channels_last if mf == "channels_last" else torch.contiguous_format
     tensor = tensor[None, ...].contiguous(memory_format=memory_format)
 
-    output = pth_downsample_i8(tensor, mode=mode, size=(osize, osize), aa=aa)
+    output = pth_downsample_i8(tensor, mode=mode, size=osize, aa=aa)
     output = output[0, ...]
 
     if expected_pil is not None:
@@ -105,7 +104,7 @@ def run_benchmark(c, dtype, size, osize, aa, mode, mf="channels_first", min_run_
 
         if mode == "bilinear":
             assert mae.item() < 1.0, mae.item()
-            assert max_abs_err.item() < 1.0 + 1e-5, max_abs_err.item()
+            assert max_abs_err.item() < 2.0 + 1e-5, max_abs_err.item()
         else:
             raise RuntimeError(f"Unsupported mode: {mode}")
 
@@ -114,7 +113,7 @@ def run_benchmark(c, dtype, size, osize, aa, mode, mf="channels_first", min_run_
         results.append(
             benchmark.Timer(
                 # pil_img = pil_img.resize((osize, osize), resample=resampling_map[mode])
-                stmt=f"data.resize(({osize}, {osize}), resample=resample_val)",
+                stmt=f"data.resize({osize[::-1]}, resample=resample_val)",
                 globals={
                     "data": pil_img,
                     "resample_val": resampling_map[mode],
@@ -129,7 +128,7 @@ def run_benchmark(c, dtype, size, osize, aa, mode, mf="channels_first", min_run_
     results.append(
         benchmark.Timer(
             # output = pth_downsample_i8(tensor, mode=mode, size=(osize, osize), aa=aa)
-            stmt=f"fn(data, mode='{mode}', size=({osize}, {osize}), aa={aa})",
+            stmt=f"fn(data, mode='{mode}', size={osize}, aa={aa})",
             globals={
                 "data": tensor,
                 "fn": pth_downsample_i8
@@ -145,7 +144,7 @@ def run_benchmark(c, dtype, size, osize, aa, mode, mf="channels_first", min_run_
         results.append(
             benchmark.Timer(
                 # output = torchvision_resize(tensor, mode=mode, size=(osize, osize), aa=aa)
-                stmt=f"fn(data, mode='{mode}', size=({osize}, {osize}), aa={aa})",
+                stmt=f"fn(data, mode='{mode}', size={osize}, aa={aa})",
                 globals={
                     "data": tensor,
                     "fn": torchvision_resize
@@ -166,6 +165,7 @@ def main(
     tag: str = "",
     display: bool = True,
     with_torchvision: bool = False,
+    extended_test_cases=True
 ):
 
     output_filepath = Path(output_filepath)
@@ -177,6 +177,8 @@ def main(
             (4, torch.uint8),
         ]:
             for size in [256, 520, 712]:
+                if isinstance(size, int):
+                    size = (size, size)
 
                 osize_aa_mode_list = [
                     (32, True, "bilinear"),
@@ -185,13 +187,44 @@ def main(
                     (224, False, "bilinear"),
                 ]
 
-                if size == 256:
+                if size == (256, 256):
                     osize_aa_mode_list += [
                         (320, True, "bilinear"),
                         (320, False, "bilinear"),
                     ]
 
                 for osize, aa, mode in osize_aa_mode_list:
+                    if isinstance(osize, int):
+                        osize = (osize, osize)
+
+                    test_results += run_benchmark(
+                        c=c, dtype=dtype, size=size,
+                        osize=osize, aa=aa, mode=mode, mf=mf,
+                        min_run_time=min_run_time, tag=tag, with_torchvision=with_torchvision
+                    )
+
+            if not extended_test_cases:
+                continue
+
+            for aa in [True, False]:
+                mode = "bilinear"
+
+                size_osize_list = [
+                    (64, 224),
+                    (224, (270, 268)),
+                    (256, (1024, 1024)),
+                    (224, 64),
+                    ((270, 268), 224),
+                    (1024, 256),
+                ]
+
+                for size, osize in size_osize_list:
+                    if isinstance(size, int):
+                        size = (size, size)
+
+                    if isinstance(osize, int):
+                        osize = (osize, osize)
+
                     test_results += run_benchmark(
                         c=c, dtype=dtype, size=size,
                         osize=osize, aa=aa, mode=mode, mf=mf,

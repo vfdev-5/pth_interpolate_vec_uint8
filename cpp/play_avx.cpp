@@ -292,11 +292,22 @@ void test_mm_cvtepu8_epi32() {
         input[3],
     };
 
+    // Latency: 1
     auto d1 = _mm_cvtsi32_si128(*(int *) data);
     print_m128i(d1, "d1");
 
+    // Latency: 1
     auto d2 = _mm_cvtepu8_epi32(d1);
     print_m128i(d2, "d2");
+
+
+    auto d3 = _mm256_set1_epi32(567);
+    print_m256i(d3, "d3");
+
+    // Latency: 6
+    // error: '_mm_loadu_si32' was not declared in this scope
+    // auto d3 = _mm_loadu_si32(data);
+    // print_m128i(d3, "d3");
 
     // int data2[4] = {234, 345, 123, 0};
     // auto d3 = _mm_load_si128((__m128i *)data2);

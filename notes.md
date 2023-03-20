@@ -661,6 +661,18 @@ PIL version:  9.0.0.post1
 Times are in microseconds (us).
 ```
 
+- Fix ASAN issue: https://hud.pytorch.org/pr/96848#12024446137
+```
+2023-03-17T11:57:05.2469361Z test_nn.py::TestNNDeviceTypeCPU::test_upsamplingBiLinear2d_consistency_memory_format_torch_channels_last_antialias_False_align_corners_False_num_channels_3_output_size_32_cpu /var/lib/jenkins/workspace/aten/src/ATen/native/cpu/UpSampleKernelAVXAntialias.h:39:46: runtime error: load of misaligned address 0x7f2cd5a2584f for type 'int32_t' (aka 'int'), which requires 4 byte alignment
+2023-03-17T11:57:05.2469468Z 0x7f2cd5a2584f: note: pointer points here
+2023-03-17T11:57:05.2469608Z  cb 04 3f a9 3e  b0 f8 d7 7f c0 5e 5c 9a  ab 51 94 19 77 fa 51 eb  7d 3c b0 b6 2e e1 27 c5  0b 6d c8
+```
+
+```
+run_with_asan pytest -vvv test/test_nn.py -k test_upsamplingBiLinear2d_consistency
+```
+
+
 
 ## Run benchmarks: nightly vs PR
 
@@ -697,6 +709,124 @@ python verif_interp2.py verif_expected --is_ref=False
 
 ## Some results
 
+### 16/03/2023
+
+#### Results on Nightly
+
+```
+export fileprefix=$(date "+%Y%m%d-%H%M%S") && python -u run_bench_interp2.py output/${fileprefix}-pt2.0.pkl --tag=PT2.0 --with_torchvision &> output/${fileprefix}-pt2.0.log
+
+python perf_results_compute_speedup.py output/20230316-155841-pt2.0_vs_torchvision_speedup.md "['output/20230316-155841-pt2.0.pkl',]" --col1="torch (2.1.0a0+git5309c44) PT2.0" --col2="torchvision resize" --description="Speed-up: PTH vs TV"
+```
+
+```
+Timestamp: 20230316-155843
+Torch version: 2.1.0a0+git5309c44
+Torch config: PyTorch built with:
+  - GCC 9.4
+  - C++ Version: 201703
+  - OpenMP 201511 (a.k.a. OpenMP 4.5)
+  - CPU capability usage: AVX2
+  - Build settings: BUILD_TYPE=Release, CXX_COMPILER=/usr/bin/c++, CXX_FLAGS= -D_GLIBCXX_USE_CXX11_ABI=1 -Wno-deprecated -fvisibility-inlines-hidden -DUSE_PTHREADPOOL -DNDEBUG -DUSE_KINETO -DLIBKINETO_NOCUPTI -DLIBKINETO_NOROCTRACER -DUSE_PYTORCH_QNNPACK -DSYMBOLICATE_MOBILE_DEBUG_HANDLE -O2 -fPIC -Wall -Wextra -Werror=return-type -Werror=non-virtual-dtor -Werror=bool-operation -Wnarrowing -Wno-missing-field-initializers -Wno-type-limits -Wno-array-bounds -Wno-unknown-pragmas -Wno-unused-parameter -Wno-unused-function -Wno-unused-result -Wno-strict-overflow -Wno-strict-aliasing -Wno-error=deprecated-declarations -Wno-stringop-overflow -Wno-psabi -Wno-error=pedantic -Wno-error=old-style-cast -fdiagnostics-color=always -faligned-new -Wno-unused-but-set-variable -Wno-maybe-uninitialized -fno-math-errno -fno-trapping-math -Werror=format -Werror=cast-function-type -Wno-stringop-overflow, PERF_WITH_AVX=1, PERF_WITH_AVX2=1, PERF_WITH_AVX512=1, TORCH_DISABLE_GPU_ASSERTS=ON, TORCH_VERSION=2.1.0, USE_CUDA=0, USE_CUDNN=OFF, USE_EIGEN_FOR_BLAS=ON, USE_EXCEPTION_PTR=1, USE_GFLAGS=OFF, USE_GLOG=OFF, USE_MKL=OFF, USE_MKLDNN=0, USE_MPI=OFF, USE_NCCL=OFF, USE_NNPACK=0, USE_OPENMP=ON, USE_ROCM=OFF,
+
+Num threads: 1
+
+[----------------------------------------------------------------------------------------- Resize -----------------------------------------------------------------------------------------]
+                                                                                 |  Pillow (9.0.0.post1)  |  torch (2.1.0a0+git5309c44) PT2.0  |  torchvision resize  |  Speed-up: PTH vs TV
+1 threads: ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+      3 torch.uint8 channels_last bilinear (64, 64) -> (224, 224) aa=True        |          61.2          |                166.6               |         823.3        |          4.9
+      3 torch.uint8 channels_last bilinear (224, 224) -> (270, 268) aa=True      |         133.0          |                333.9               |        1455.2        |          4.4
+      3 torch.uint8 channels_last bilinear (256, 256) -> (1024, 1024) aa=True    |         945.2          |               2769.7               |       24002.0        |          8.7
+      3 torch.uint8 channels_last bilinear (224, 224) -> (64, 64) aa=True        |          52.3          |                137.5               |         374.7        |          2.7
+      3 torch.uint8 channels_last bilinear (270, 268) -> (224, 224) aa=True      |         138.7          |                324.5               |        1248.8        |          3.8
+      3 torch.uint8 channels_last bilinear (1024, 1024) -> (256, 256) aa=True    |         696.7          |               2042.6               |        9597.2        |          4.7
+      3 torch.uint8 channels_last bilinear (64, 64) -> (224, 224) aa=False       |                        |                167.4               |         873.2        |          5.2
+      3 torch.uint8 channels_last bilinear (224, 224) -> (270, 268) aa=False     |                        |                331.2               |        1270.2        |          3.8
+      3 torch.uint8 channels_last bilinear (256, 256) -> (1024, 1024) aa=False   |                        |               2735.2               |       19251.7        |          7.0
+      3 torch.uint8 channels_last bilinear (224, 224) -> (64, 64) aa=False       |                        |                112.4               |         119.2        |          1.1
+      3 torch.uint8 channels_last bilinear (270, 268) -> (224, 224) aa=False     |                        |                299.0               |         908.5        |          3.0
+      3 torch.uint8 channels_last bilinear (1024, 1024) -> (256, 256) aa=False   |                        |               1700.0               |        2132.7        |          1.3
+      3 torch.uint8 channels_first bilinear (64, 64) -> (224, 224) aa=True       |          60.8          |                209.9               |         405.0        |          1.9
+      3 torch.uint8 channels_first bilinear (224, 224) -> (270, 268) aa=True     |         132.6          |                388.2               |         846.1        |          2.2
+      3 torch.uint8 channels_first bilinear (256, 256) -> (1024, 1024) aa=True   |         944.1          |               3141.2               |        8627.0        |          2.7
+      3 torch.uint8 channels_first bilinear (224, 224) -> (64, 64) aa=True       |          52.5          |                138.9               |         337.2        |          2.4
+      3 torch.uint8 channels_first bilinear (270, 268) -> (224, 224) aa=True     |         139.2          |                335.8               |         823.6        |          2.5
+      3 torch.uint8 channels_first bilinear (1024, 1024) -> (256, 256) aa=True   |         691.2          |               2090.5               |        6692.3        |          3.2
+      3 torch.uint8 channels_first bilinear (64, 64) -> (224, 224) aa=False      |                        |                208.0               |        1053.6        |          5.1
+      3 torch.uint8 channels_first bilinear (224, 224) -> (270, 268) aa=False    |                        |                388.0               |        1606.3        |          4.1
+      3 torch.uint8 channels_first bilinear (256, 256) -> (1024, 1024) aa=False  |                        |               3091.6               |       24532.5        |          7.9
+      3 torch.uint8 channels_first bilinear (224, 224) -> (64, 64) aa=False      |                        |                115.1               |         231.9        |          2.0
+      3 torch.uint8 channels_first bilinear (270, 268) -> (224, 224) aa=False    |                        |                342.4               |        1214.5        |          3.5
+      3 torch.uint8 channels_first bilinear (1024, 1024) -> (256, 256) aa=False  |                        |               1753.7               |        4988.4        |          2.8
+
+Times are in microseconds (us).
+
+```
+
+```
+export fileprefix=$(date "+%Y%m%d-%H%M%S") && ATEN_CPU_CAPABILITY=default python -u run_bench_interp2.py output/${fileprefix}-default-cpu_cap-pt2.0.pkl --tag=PT2.0 --with_torchvision &> output/${fileprefix}-pt2.0.log
+
+python perf_results_compute_speedup.py output/20230316-162354-pt2.0_vs_torchvision_speedup.md "['output/20230316-162354-default-cpu-cap-pt2.0.pkl',]" --col1="torch (2.1.0a0+git5309c44) PT2.0" --col2="torchvision resize" --description="Speed-up: PTH vs TV"
+```
+
+```
+Timestamp: 20230316-162355
+Torch version: 2.1.0a0+git5309c44
+Torch config: PyTorch built with:
+  - GCC 9.4
+  - C++ Version: 201703
+  - OpenMP 201511 (a.k.a. OpenMP 4.5)
+  - CPU capability usage: NO AVX
+  - Build settings: BUILD_TYPE=Release, CXX_COMPILER=/usr/bin/c++, CXX_FLAGS= -D_GLIBCXX_USE_CXX11_ABI=1 -Wno-deprecated -fvisibility-inlines-hidden -DUSE_PTHREADPOOL -DNDEBUG -DUSE_KINETO -DLIBKINETO_NOCUPTI -DLIBKINETO_NOROCTRACER -DUSE_PYTORCH_QNNPACK -DSYMBOLICATE_MOBILE_DEBUG_HANDLE -O2 -fPIC -Wall -Wextra -Werror=return-type -Werror=non-virtual-dtor -Werror=bool-operation -Wnarrowing -Wno-missing-field-initializers -Wno-type-limits -Wno-array-bounds -Wno-unknown-pragmas -Wno-unused-parameter -Wno-unused-function -Wno-unused-result -Wno-strict-overflow -Wno-strict-aliasing -Wno-error=deprecated-declarations -Wno-stringop-overflow -Wno-psabi -Wno-error=pedantic -Wno-error=old-style-cast -fdiagnostics-color=always -faligned-new -Wno-unused-but-set-variable -Wno-maybe-uninitialized -fno-math-errno -fno-trapping-math -Werror=format -Werror=cast-function-type -Wno-stringop-overflow, PERF_WITH_AVX=1, PERF_WITH_AVX2=1, PERF_WITH_AVX512=1, TORCH_DISABLE_GPU_ASSERTS=ON, TORCH_VERSION=2.1.0, USE_CUDA=0, USE_CUDNN=OFF, USE_EIGEN_FOR_BLAS=ON, USE_EXCEPTION_PTR=1, USE_GFLAGS=OFF, USE_GLOG=OFF, USE_MKL=OFF, USE_MKLDNN=0, USE_MPI=OFF, USE_NCCL=OFF, USE_NNPACK=0, USE_OPENMP=ON, USE_ROCM=OFF,
+
+Num threads: 1
+
+PIL version:  9.0.0.post1
+
+[----------------------------------------------------------------------------------------- Resize -----------------------------------------------------------------------------------------]
+                                                                                 |  Pillow (9.0.0.post1)  |  torch (2.1.0a0+git5309c44) PT2.0  |  torchvision resize  |  Speed-up: PTH vs TV
+1 threads: ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+      3 torch.uint8 channels_last bilinear (64, 64) -> (224, 224) aa=True        |           60.8         |                985.0               |        1143.2        |          1.2
+      3 torch.uint8 channels_last bilinear (224, 224) -> (270, 268) aa=True      |          133.5         |               1865.2               |        1962.5        |          1.1
+      3 torch.uint8 channels_last bilinear (256, 256) -> (1024, 1024) aa=True    |         1031.8         |              19498.8               |       31670.5        |          1.6
+      3 torch.uint8 channels_last bilinear (224, 224) -> (64, 64) aa=True        |           52.4         |                451.5               |         472.2        |          1.0
+      3 torch.uint8 channels_last bilinear (270, 268) -> (224, 224) aa=True      |          138.9         |               1617.4               |        1649.1        |          1.0
+      3 torch.uint8 channels_last bilinear (1024, 1024) -> (256, 256) aa=True    |          690.2         |               7913.4               |        8451.1        |          1.1
+      3 torch.uint8 channels_last bilinear (64, 64) -> (224, 224) aa=False       |                        |                982.3               |        1011.7        |          1.0
+      3 torch.uint8 channels_last bilinear (224, 224) -> (270, 268) aa=False     |                        |               1861.8               |        1513.1        |          0.8
+      3 torch.uint8 channels_last bilinear (256, 256) -> (1024, 1024) aa=False   |                        |              19482.3               |       20998.5        |          1.1
+      3 torch.uint8 channels_last bilinear (224, 224) -> (64, 64) aa=False       |                        |                270.4               |         182.5        |          0.7
+      3 torch.uint8 channels_last bilinear (270, 268) -> (224, 224) aa=False     |                        |               1527.6               |        1115.5        |          0.7
+      3 torch.uint8 channels_last bilinear (1024, 1024) -> (256, 256) aa=False   |                        |               4131.4               |        2967.0        |          0.7
+      3 torch.uint8 channels_first bilinear (64, 64) -> (224, 224) aa=True       |           61.0         |                629.9               |         682.8        |          1.1
+      3 torch.uint8 channels_first bilinear (224, 224) -> (270, 268) aa=True     |          133.9         |               1356.5               |        1298.8        |          1.0
+      3 torch.uint8 channels_first bilinear (256, 256) -> (1024, 1024) aa=True   |          945.5         |              11945.5               |       13136.1        |          1.1
+      3 torch.uint8 channels_first bilinear (224, 224) -> (64, 64) aa=True       |           52.7         |                420.7               |         434.9        |          1.0
+      3 torch.uint8 channels_first bilinear (270, 268) -> (224, 224) aa=True     |          138.9         |               1263.9               |        1187.5        |          0.9
+      3 torch.uint8 channels_first bilinear (1024, 1024) -> (256, 256) aa=True   |          691.9         |               7423.7               |        7661.4        |          1.0
+      3 torch.uint8 channels_first bilinear (64, 64) -> (224, 224) aa=False      |                        |                628.9               |        1190.9        |          1.9
+      3 torch.uint8 channels_first bilinear (224, 224) -> (270, 268) aa=False    |                        |               1354.9               |        1846.4        |          1.4
+      3 torch.uint8 channels_first bilinear (256, 256) -> (1024, 1024) aa=False  |                        |              11961.0               |       27052.5        |          2.3
+      3 torch.uint8 channels_first bilinear (224, 224) -> (64, 64) aa=False      |                        |                239.1               |         295.3        |          1.2
+      3 torch.uint8 channels_first bilinear (270, 268) -> (224, 224) aa=False    |                        |               1174.4               |        1416.4        |          1.2
+      3 torch.uint8 channels_first bilinear (1024, 1024) -> (256, 256) aa=False  |                        |               3659.3               |       13981.4        |          3.8
+
+Times are in microseconds (us).
+
+```
+
+
+#### Results on PR
+
+```
+export fileprefix=$(date "+%Y%m%d-%H%M%S") && ATEN_CPU_CAPABILITY=default python -u run_bench_interp2.py output/${fileprefix}-default-cpu_cap-pr.pkl --tag=PR --with_torchvision &> output/${fileprefix}-pr.log
+
+python perf_results_compute_speedup.py output/20230316-164209-pr_vs_torchvision_speedup.md "['output/20230316-164209-default-cpu_cap-pr.pkl',]" --col1="torch (2.1.0a0+git0968a5d) PR" --col2="torchvision resize" --description="Speed-up: PTH vs TV"
+```
+
+```
+...
+```
 
 ### 02/03/2023
 
@@ -2150,5 +2280,3 @@ PIL version:  9.0.0.post1
       4 torch.uint8 channels_last bilinear 256 -> (224, 256) aa=True    |                        |               56.1
       4 torch.uint8 channels_first bilinear 256 -> (224, 256) aa=True   |                        |              187.4
 ```
-
--

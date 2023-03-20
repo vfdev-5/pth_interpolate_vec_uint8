@@ -70,11 +70,22 @@ void test_2() {
 }
 
 
+void test_3() {
+
+    uint8_t input[] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
+
+    auto * ptr = &input[2];
+    // load of misaligned address 0x7ffdd701ce22 for type 'int32_t' (aka 'int'), which requires 4 byte alignment
+    // auto output = _mm_cvtepu8_epi32(_mm_cvtsi32_si128(*(int32_t*)ptr));
+}
+
 int main(int argc, char** argv) {
 
 
     // test_2();
-    test_1((argc > 1) ? atoi(argv[1]) : 0);
+    // test_1((argc > 1) ? atoi(argv[1]) : 0);
+
+    test_3();
 
     return 0;
 }
