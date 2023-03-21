@@ -687,6 +687,8 @@ python -u run_bench_interp.py "output/$(date "+%Y%m%d-%H%M%S")-nightly.pkl" --ta
 python -u run_bench_interp.py "output/$(date "+%Y%m%d-%H%M%S")-pr.pkl" --tag=PR
 
 python -u make_results_table_from_pickles.py output/$(date "+%Y%m%d-%H%M%S")-pr_vs_nightly.md output/XYZ-pr.pkl output/ABC-nightly.pkl
+
+python -u perf_results_compute_speedup.py output/20230320-160044-pr_vs_nightly-speedup.md "['output/XYZ-pr.pkl', 'output/ABC-nightly.pkl']" --col1="torch (2.1.0a0+gitc005105) PR" --col2="torch (2.1.0a0+git5309c44) nightly" --description="Speed-up: PR vs nightly"
 ```
 
 ```

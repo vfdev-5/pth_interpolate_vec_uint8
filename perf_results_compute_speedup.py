@@ -1,13 +1,34 @@
 import pickle
 from pathlib import Path
 from typing import List, Optional
+import unittest.mock
 
+import torch
 import torch.utils.benchmark as benchmark
 from torch.utils.benchmark.utils import common
 from torch.utils.benchmark.utils.compare import Table
 
 
 import fire
+
+
+def patched_as_column_strings(self):
+    concrete_results = [r for r in self._results if r is not None]
+    env = f"({concrete_results[0].env})" if self._render_env else ""
+    env = env.ljust(self._env_str_len + 4)
+    output = ["  " + env + concrete_results[0].as_row_name]
+    for m, col in zip(self._results, self._columns or ()):
+        if m is None:
+            output.append(col.num_to_str(None, 1, None))
+        else:
+            if len(m.times) == 1:
+                spread = 0
+            else:
+                spread = float(torch.tensor(m.times, dtype=torch.float64).std(unbiased=len(m.times) > 1))
+                if col._trim_significant_figures:
+                    spread = benchmark.utils.common.trim_sigfig(spread, m.significant_figures)
+            output.append(f"{m.median / self._time_scale:>3.3f} (+-{spread / self._time_scale:>3.3f})")
+    return output
 
 
 class Value(common.Measurement): pass
@@ -33,35 +54,7 @@ class CustomizedTable(Table):
         self.rows, self.columns = self.populate_rows_and_columns()
 
 
-def main(
-    output_filepath: str,
-    perf_files: List[str],
-    *,
-    col1: str,
-    col2: str,
-    description: Optional[str] = None,
-    debug: bool = False
-):
-    output_filepath = Path(output_filepath)
-    if output_filepath.exists():
-        raise FileExistsError(f"Output file '{output_filepath}' exists. Please path to non-existing file")
-
-    if debug:
-        print("output_filepath:", output_filepath)
-        print("perf_files:", perf_files, type(perf_files))
-        print("col1:", col1, type(col1))
-        print("col2:", col2, type(col2))
-        print("description:", description, type(description))
-
-    ab_results = []
-    for perf_filepath in perf_files:
-        assert Path(perf_filepath).exists(), f"{perf_filepath} is not found"
-        with open(perf_filepath, "rb") as handler:
-            output = pickle.load(handler)
-            ab_results.extend(output["test_results"])
-
-    compare = benchmark.Compare(ab_results)
-
+def get_new_table(compare, col1, col2, description, debug):
     results = common.Measurement.merge(compare._results)
     grouped_results = compare._group_by_label(results)
     assert len(grouped_results.values()) == 1, grouped_results.values()
@@ -132,12 +125,60 @@ def main(
         compare._trim_significant_figures,
         compare._highlight_warnings
     )
+    return table
+
+
+def main(
+    output_filepath: str,
+    perf_files: List[str],
+    *,
+    col1: str,
+    col2: str,
+    description: Optional[str] = None,
+    debug: bool = False
+):
+    output_filepath = Path(output_filepath)
+    if output_filepath.exists():
+        raise FileExistsError(f"Output file '{output_filepath}' exists. Please provide a path to non-existing file")
+
+    if debug:
+        print("output_filepath:", output_filepath)
+        print("perf_files:", perf_files, type(perf_files))
+        print("col1:", col1, type(col1))
+        print("col2:", col2, type(col2))
+        print("description:", description, type(description))
+
+    ab_results = []
+    ab_configs = []
+    for perf_filepath in perf_files:
+        assert Path(perf_filepath).exists(), f"{perf_filepath} is not found"
+        with open(perf_filepath, "rb") as handler:
+            output = pickle.load(handler)
+            ab_configs.append(
+                f"Torch version: {output['torch_version']}\n"
+                f"Torch config: {output['torch_config']}\n"
+            )
+            ab_results.extend(output["test_results"])
+
+    assert len(ab_configs) == len(perf_files), (len(ab_configs), len(perf_files))
+    compare = benchmark.Compare(ab_results)
+
+    table = get_new_table(compare, col1=col1, col2=col2, description=description, debug=debug)
 
     if debug:
         print(table.render())
 
-    with output_filepath.open("w") as h:
-        h.write(table.render())
+    with output_filepath.open("w") as handler:
+        handler.write(f"Description:\n")
+        with unittest.mock.patch(
+            "torch.utils.benchmark.utils.compare._Row.as_column_strings", patched_as_column_strings
+        ):
+            for in_filepath, config in zip(perf_files, ab_configs):
+                handler.write(f"- {Path(in_filepath).stem}\n")
+                handler.write(f"{config}\n")
+
+            handler.write(f"\n")
+            handler.write(table.render())
 
 
 if __name__ == "__main__":
