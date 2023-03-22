@@ -177,19 +177,11 @@ def main(output_path: str, is_ref: bool):
 
                             torch.testing.assert_close(expected_ten, output)
 
-                            assert mae.item() < 1.0, mae.item()
-
+                            # assert mae.item() < 1.0, mae.item()
                             # max_abs_err_tol = 1.0
-
-                            # !!! TODO: Temporarily raise tolerance for certain random cases like
-                            # mf/size/dtype/c/osize/aa/mode/ac :  channels_last [256, 256] torch.uint8 3 (32, 33) False bilinear False
-                            # mf/size/dtype/c/osize/aa/mode/ac :  channels_last [256, 256] torch.uint8 3 (320, 321) False bilinear True
-                            # ...
-                            max_abs_err_tol = 2.0
-
-                            m = abs_diff > 1.5
-                            assert max_abs_err.item() < max_abs_err_tol + 1e-5, \
-                                (max_abs_err.item(), expected_ten.float()[m], output.float()[m])
+                            # m = abs_diff > 1.5
+                            # assert max_abs_err.item() < max_abs_err_tol + 1e-5, \
+                            #     (max_abs_err.item(), expected_ten.float()[m], output.float()[m])
 
 
 if __name__ == "__main__":
