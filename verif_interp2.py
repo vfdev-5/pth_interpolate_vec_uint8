@@ -79,7 +79,7 @@ else:
 def main(output_path: str, is_ref: bool):
 
     for ac in [True, False]:
-        for mf in ["channels_last", "channels_first"]:
+        for mf in ["channels_first", "channels_last"]:
             for c, dtype in [
                 (3, torch.uint8),
                 (1, torch.uint8),
@@ -140,7 +140,8 @@ def main(output_path: str, is_ref: bool):
 
                         # Tested op -> output
                         if is_ref:
-                            if dtype == torch.float:
+                            # # When there is no reference code, we can use float32 intermediate dtype
+                            if dtype in (torch.float32, torch.uint8):
                                 output = pth_downsample(tensor, mode, osize, aa, ac)
                             else:
                                 output = pth_downsample_force_float(tensor, mode, osize, aa, ac)
@@ -173,6 +174,9 @@ def main(output_path: str, is_ref: bool):
                         max_abs_err = torch.max(abs_diff)
 
                         if mode == "bilinear":
+
+                            torch.testing.assert_close(expected_ten, output)
+
                             assert mae.item() < 1.0, mae.item()
 
                             # max_abs_err_tol = 1.0

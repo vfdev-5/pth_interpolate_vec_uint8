@@ -1,4 +1,4 @@
-# WIP on Vectorized interpolation uint8
+# WIP on Vectorized bilinear interpolation uint8, channels last
 
 - Install Pillow-SIMD
 ```
@@ -710,6 +710,59 @@ python verif_interp2.py verif_expected --is_ref=False
 ```
 
 ## Some results
+
+### 22/03/2023
+
+Compare `_write_endline_rgb_as_uint32` 3 memcpy vs 1 uint8 set + 1 memcpy
+
+- 3 memcpy
+```
+Num threads: 1
+
+PIL version:  9.0.0.post1
+[----------------------------------------------------------- Resize -----------------------------------------------------------]
+                                                                       |  Pillow (9.0.0.post1)  |  torch (2.1.0a0+git8d955df) PR
+1 threads: ---------------------------------------------------------------------------------------------------------------------
+      3 torch.uint8 channels_last bilinear 256 -> (224, 224) aa=True   |         128.4          |              153.8
+      3 torch.uint8 channels_last bilinear 256 -> (32, 32) aa=True     |          38.5          |               58.2
+      3 torch.uint8 channels_last bilinear 256 -> (256, 224) aa=True   |          91.2          |              114.5
+      3 torch.uint8 channels_last bilinear 256 -> (256, 227) aa=True   |          93.7          |              123.8
+      3 torch.uint8 channels_last bilinear 256 -> (224, 256) aa=True   |          52.2          |               52.0
+      3 torch.uint8 channels_last bilinear 256 -> (227, 256) aa=True   |          57.2          |               52.6
+      3 torch.uint8 channels_first bilinear 256 -> (224, 224) aa=True  |         128.4          |              311.7
+      3 torch.uint8 channels_first bilinear 256 -> (32, 32) aa=True    |          38.6          |              131.7
+      3 torch.uint8 channels_first bilinear 256 -> (256, 224) aa=True  |          90.8          |              283.3
+      3 torch.uint8 channels_first bilinear 256 -> (256, 227) aa=True  |          92.2          |              286.7
+      3 torch.uint8 channels_first bilinear 256 -> (224, 256) aa=True  |          52.3          |              233.3
+      3 torch.uint8 channels_first bilinear 256 -> (227, 256) aa=True  |          52.1          |              235.4
+
+Times are in microseconds (us).
+```
+
+
+- 1 memcpy + 1 uint8 set
+```
+Num threads: 1
+
+PIL version:  9.0.0.post1
+[----------------------------------------------------------- Resize -----------------------------------------------------------]
+                                                                       |  Pillow (9.0.0.post1)  |  torch (2.1.0a0+git8d955df) PR
+1 threads: ---------------------------------------------------------------------------------------------------------------------
+      3 torch.uint8 channels_last bilinear 256 -> (224, 224) aa=True   |         128.1          |              154.0
+      3 torch.uint8 channels_last bilinear 256 -> (32, 32) aa=True     |          38.5          |               55.3
+      3 torch.uint8 channels_last bilinear 256 -> (256, 224) aa=True   |          91.5          |              115.6
+      3 torch.uint8 channels_last bilinear 256 -> (256, 227) aa=True   |          93.1          |              125.4
+      3 torch.uint8 channels_last bilinear 256 -> (224, 256) aa=True   |          52.2          |               52.0
+      3 torch.uint8 channels_last bilinear 256 -> (227, 256) aa=True   |          52.9          |               52.4
+      3 torch.uint8 channels_first bilinear 256 -> (224, 224) aa=True  |         129.6          |              300.6
+      3 torch.uint8 channels_first bilinear 256 -> (32, 32) aa=True    |          38.3          |              130.8
+      3 torch.uint8 channels_first bilinear 256 -> (256, 224) aa=True  |          92.4          |              267.9
+      3 torch.uint8 channels_first bilinear 256 -> (256, 227) aa=True  |          92.5          |              270.9
+      3 torch.uint8 channels_first bilinear 256 -> (224, 256) aa=True  |          52.1          |              218.0
+      3 torch.uint8 channels_first bilinear 256 -> (227, 256) aa=True  |          52.3          |              218.8
+
+Times are in microseconds (us).
+```
 
 ### 16/03/2023
 

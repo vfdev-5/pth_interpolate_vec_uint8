@@ -109,7 +109,7 @@ void print_m128i(__m128i value, std::string tag="") {
 void test_ImagingResampleVerticalConvolution8u()
 {
     // Vertical pass: ImagingResampleVerticalConvolution8u
-    // Try to adapt the code for RGB data (not RGBA)
+    // Try to adapt the code for RGB Channels First data
 
     unsigned char *lineIn;
     unsigned char *lineOut;
@@ -137,8 +137,6 @@ void test_ImagingResampleVerticalConvolution8u()
     lineOut = &output[0];
 
     print_data(data, 1 * 20 * num_channels, "input");
-
-    auto stride = num_channels * 1;  // num channels * sizeof(uint8)
 
     // (20, 4)
     // coefs_precision=16, ksize=5
@@ -198,322 +196,105 @@ void test_ImagingResampleVerticalConvolution8u()
         std::cout << std::endl;
     }
 
-    const int64_t data_size = xsize * stride;
-    const int64_t data_stride = stride;
-    constexpr auto vec_size = 256 / 8;
+    const int64_t strides[2] = {sizeof(uint8_t), sizeof(uint8_t)};
 
-    int64_t i = 0;
+    for (int c=0; c < 3; c++) {
 
-    __m128i initial = _mm_set1_epi32(1 << (coefs_precision - 1));
-    __m256i initial_256 = _mm256_set1_epi32(1 << (coefs_precision - 1));
-    auto zero = _mm_setzero_si128();
-    auto zero_256 = _mm256_setzero_si256();
+        const int64_t n = xsize;
+        constexpr auto vec_size = 256 / 8;
 
-    // const auto b8_usable_vec_stride = (vec_size / data_stride) * data_stride;
-    // for (; i < data_size - vec_size; i += b8_usable_vec_stride) {
-    //     __m256i sss0 = initial_256;
-    //     __m256i sss1 = initial_256;
-    //     __m256i sss2 = initial_256;
-    //     __m256i sss3 = initial_256;
-    //     x = 0;
+        int64_t i = 0;
 
-    //     std::cout << "-- B8 i=" << i << std::endl;
-    //     print_m256i(sss0, "sss0");
-    //     print_m256i(sss1, "sss1");
-    //     print_m256i(sss2, "sss2");
-    //     print_m256i(sss3, "sss3");
+        // __m128i initial = _mm_set1_epi32(1 << (coefs_precision - 1));
+        // __m256i initial_256 = _mm256_set1_epi32(1 << (coefs_precision - 1));
+        // auto zero = _mm_setzero_si128();
+        // auto zero_256 = _mm256_setzero_si256();
 
-    //     for (; x < xmax - 1; x += 2) {
-    //         std::cout << "- B8 block 2, x: " << x << std::endl;
-    //         __m256i source, source1, source2;
-    //         __m256i pix, mmk;
+        // for (; i < data_size; i += data_stride) {
+        //     __m128i sss = initial;
+        //     x = 0;
+        //     std::cout << "-- B0 i=" << i << std::endl;
 
-    //         // Load two coefficients at once
-    //         mmk = _mm256_set1_epi32(*(int32_t*)&k[x]);
+        //     for (; x < xmax - 1; x += 2) {
+        //         std::cout << "- B0 block 2, x: " << x << std::endl;
+        //         __m128i source, source1, source2;
+        //         __m128i pix, mmk;
 
-    //         // Load 2 lines
-    //         source1 =
-    //             _mm256_loadu_si256((__m256i*)(lineIn + i + data_size * (x + xmin)));
-    //         source2 =
-    //             _mm256_loadu_si256((__m256i*)(lineIn + i + data_size * (x + 1 + xmin)));
+        //         // Load two coefficients at once
+        //         mmk = _mm_set1_epi32(*(int32_t*)&k[x]);
+        //         print_m128i(mmk, "mmk");
 
-    //         source = _mm256_unpacklo_epi8(source1, source2);
-    //         pix = _mm256_unpacklo_epi8(source, zero_256);
-    //         sss0 = _mm256_add_epi32(sss0, _mm256_madd_epi16(pix, mmk));
-    //         pix = _mm256_unpackhi_epi8(source, zero_256);
-    //         sss1 = _mm256_add_epi32(sss1, _mm256_madd_epi16(pix, mmk));
+        //         // Load 2 lines
+        //         source1 = _mm_cvtsi32_si128(*(int*)(lineIn + i + data_size * (x + xmin)));
+        //         print_m128i(source1, "source1");
+        //         source2 = _mm_cvtsi32_si128(*(int*)(lineIn + i + data_size * (x + 1 + xmin)));
+        //         print_m128i(source2, "source2");
 
-    //         source = _mm256_unpackhi_epi8(source1, source2);
-    //         pix = _mm256_unpacklo_epi8(source, zero_256);
-    //         sss2 = _mm256_add_epi32(sss2, _mm256_madd_epi16(pix, mmk));
-    //         pix = _mm256_unpackhi_epi8(source, zero_256);
-    //         sss3 = _mm256_add_epi32(sss3, _mm256_madd_epi16(pix, mmk));
-    //     }
-    //     for (; x < xmax; x += 1) {
-    //         std::cout << "- B8 block 1, x: " << x << std::endl;
+        //         source = _mm_unpacklo_epi8(source1, source2);
+        //         print_m128i(source, "source");
+        //         pix = _mm_unpacklo_epi8(source, zero);
+        //         print_m128i(pix, "pix");
+        //         sss = _mm_add_epi32(sss, _mm_madd_epi16(pix, mmk));
+        //         print_m128i(sss, "sss");
+        //     }
 
-    //         __m256i source, source1, pix, mmk;
-    //         mmk = _mm256_set1_epi32(k[x]);
-    //         print_m256i(mmk, "mmk");
+        //     int output[4] = {0, 0, 0, 0};
+        //     for (; x < xmax; x++) {
+        //         std::cout << "- B0 block 1, x: " << x << std::endl;
+        //         auto p = lineIn + i + data_size * (x + xmin);
+        //         for (int ch=0; ch < num_channels; ch++) {
+        //             output[ch] += (*(p + ch) * k[x]);
+        //         }
+        //     }
 
-    //         source1 = _mm256_loadu_si256((__m256i*)(lineIn + i + data_size * (x + xmin)));
-    //         print_m256i(source1, "source1");
+        //     sss = _mm_add_epi32(sss, _mm_load_si128((__m128i *)output));
 
-    //         source = _mm256_unpacklo_epi8(source1, zero_256);
-    //         print_m256i(source, "source");
-    //         pix = _mm256_unpacklo_epi8(source, zero_256);
-    //         print_m256i(pix, "pix");
-    //         sss0 = _mm256_add_epi32(sss0, _mm256_madd_epi16(pix, mmk));
-    //         print_m256i(sss0, "sss0");
+        //     std::cout << "--" << std::endl;
 
-    //         pix = _mm256_unpackhi_epi8(source, zero_256);
-    //         print_m256i(pix, "pix");
-    //         sss1 = _mm256_add_epi32(sss1, _mm256_madd_epi16(pix, mmk));
-    //         print_m256i(sss1, "sss1");
+        //     sss = _mm_srai_epi32(sss, coefs_precision);
+        //     print_m128i(sss, "sss");
+        //     // print_m128i sss: 25 0 0 0 26 0 0 0 27 0 0 0 X 0 0 0
+        //     sss = _mm_packs_epi32(sss, zero);
+        //     print_m128i(sss, "sss");
+        //     // print_m128i sss: 25 0 26 0 27 0 X 0 0 0 0 0 0 0 0 0
+        //     sss = _mm_packus_epi16(sss, zero);
+        //     print_m128i(sss, "sss");
+        //     // print_m128i sss: 25 26 27 X 0 0 0 0 0 0 0 0 0 0 0 0
 
-    //         source = _mm256_unpackhi_epi8(source1, zero_256);
-    //         print_m256i(source, "source");
-    //         pix = _mm256_unpacklo_epi8(source, zero_256);
-    //         print_m256i(pix, "pix");
-    //         sss2 = _mm256_add_epi32(sss2, _mm256_madd_epi16(pix, mmk));
-    //         print_m256i(sss1, "sss1");
+        //     if (num_channels == 3)
+        //     {
+        //         // replace X by 0
+        //         auto mask = _mm_set_epi8(
+        //             -1, -1, -1, -1,  -1, -1, -1, -1,  -1, -1, -1, -1,  -1, 2, 1, 0
+        //         );
+        //         sss = _mm_shuffle_epi8(sss, mask);
+        //     }
+        //     print_m128i(sss, "sss");
+        //     // print_m128i sss: 25 26 27 0 0 0 0 0 0 0 0 0 0 0 0 0
 
-    //         pix = _mm256_unpackhi_epi8(source, zero_256);
-    //         print_m256i(pix, "pix");
-    //         sss3 = _mm256_add_epi32(sss3, _mm256_madd_epi16(pix, mmk));
-    //         print_m256i(sss3, "sss3");
-    //     }
+        //     auto o = _mm_cvtsi128_si32(sss);
+        //     for (int ch=0; ch < num_channels; ch++) {
+        //         (lineOut + i)[ch] = ((unsigned char *) &o)[ch];
+        //     }
+        // }
 
-    //     std::cout << "--" << std::endl;
+        // for (; i < n; i++) {
+        //     char* src_min = src + i * strides[1] + ids_min;
 
-    //     sss0 = _mm256_srai_epi32(sss0, coefs_precision);
-    //     print_m256i(sss0, "sss0");
-    //     sss1 = _mm256_srai_epi32(sss1, coefs_precision);
-    //     print_m256i(sss1, "sss1");
-    //     sss2 = _mm256_srai_epi32(sss2, coefs_precision);
-    //     print_m256i(sss2, "sss2");
-    //     sss3 = _mm256_srai_epi32(sss3, coefs_precision);
-    //     print_m256i(sss3, "sss3");
+        //     uint8_t t = *(uint8_t*)&src_min[0];
+        //     int16_t wts = wts_ptr[0];
+        //     // Intermediate computations are using integer type
+        //     int output = 1 << (weights_precision - 1);  // accounts for the +0.5 part
+        //     output += t * wts;
+        //     for (const auto j : c10::irange(1, ids_size)) {
+        //     wts = wts_ptr[j];
+        //     t = *(uint8_t*)&src_min[j * ids_stride];
+        //     output += t * wts;
+        //     }
+        //     *(uint8_t*)&dst[i * strides[0]] = (uint8_t)std::clamp(output >> weights_precision, 0, 255);
 
-    //     sss0 = _mm256_packs_epi32(sss0, sss1);
-    //     print_m256i(sss0, "sss0");
-    //     sss2 = _mm256_packs_epi32(sss2, sss3);
-    //     print_m256i(sss2, "sss2");
-    //     sss0 = _mm256_packus_epi16(sss0, sss2);
-    //     print_m256i(sss0, "sss0");
+        // }
 
-    //     // Stores 32 bytes
-    //     _mm256_storeu_si256((__m256i*)(lineOut + i), sss0);
-    //     print_data(output, 20 * 1 * 3, "B8 output");
-    // }
-
-    // const auto b2_usable_vec_stride = (8 / data_stride) * data_stride;
-    // // TODO: can we make b2_usable_vec_stride as (16 / data_stride) * data_stride ?
-    // for (; i < data_size - vec_size / 2; i += b2_usable_vec_stride) {
-    //     __m128i sss0 = initial; // left row
-    //     __m128i sss1 = initial; // right row
-    //     x = 0;
-    //     std::cout << "-- B2 i=" << i << std::endl;
-    //     print_m128i(sss0, "sss0");
-    //     print_m128i(sss1, "sss1");
-
-    //     for (; x < xmax - 1; x += 2) {
-    //         std::cout << "- B2 block 2, x: " << x << std::endl;
-    //         __m128i source, source1, source2;
-    //         __m128i pix, mmk;
-
-    //         // Load two coefficients at once
-    //         mmk = _mm_set1_epi32(*(int32_t*)&k[x]);
-
-    //         // Load 2 lines
-    //         source1 = _mm_loadl_epi64((__m128i*)(lineIn + i + data_size * (x + xmin)));
-    //         source2 = _mm_loadl_epi64((__m128i*)(lineIn + i + data_size * (x + 1 + xmin)));
-
-    //         source = _mm_unpacklo_epi8(source1, source2);
-    //         pix = _mm_unpacklo_epi8(source, zero);
-    //         sss0 = _mm_add_epi32(sss0, _mm_madd_epi16(pix, mmk));
-    //         pix = _mm_unpackhi_epi8(source, zero);
-    //         sss1 = _mm_add_epi32(sss1, _mm_madd_epi16(pix, mmk));
-    //     }
-    //     for (; x < xmax; x += 1) {
-    //         std::cout << "- B2 block 1, x: " << x << std::endl;
-
-    //         __m128i source, source1, pix, mmk;
-    //         mmk = _mm_set1_epi32(k[x]);
-    //         print_m128i(mmk, "mmk");
-
-    //         source1 = _mm_loadl_epi64((__m128i*)(lineIn + i + data_size * (x + xmin)));
-    //         print_m128i(source1, "source1");
-
-    //         source = _mm_unpacklo_epi8(source1, zero);
-    //         print_m128i(source, "source");
-
-    //         pix = _mm_unpacklo_epi8(source, zero);
-    //         print_m128i(pix, "pix");
-    //         sss0 = _mm_add_epi32(sss0, _mm_madd_epi16(pix, mmk));
-    //         print_m128i(sss0, "sss0");
-
-    //         pix = _mm_unpackhi_epi8(source, zero);
-    //         print_m128i(pix, "pix");
-    //         sss1 = _mm_add_epi32(sss1, _mm_madd_epi16(pix, mmk));
-    //         print_m128i(sss1, "sss1");
-
-    //     }
-
-    //     std::cout << "--" << std::endl;
-
-    //     sss0 = _mm_srai_epi32(sss0, coefs_precision);
-    //     print_m128i(sss0, "sss0");
-    //     sss1 = _mm_srai_epi32(sss1, coefs_precision);
-    //     print_m128i(sss1, "sss1");
-
-    //     sss0 = _mm_packs_epi32(sss0, sss1);
-    //     print_m128i(sss0, "sss0");
-    //     sss0 = _mm_packus_epi16(sss0, zero);
-    //     print_m128i(sss0, "sss0");
-
-    //     _mm_storel_epi64((__m128i*)(lineOut + i), sss0);
-
-    //     print_data(output, 20 * 1 * 3, "B2 output");
-    // }
-
-    // const auto b1_usable_vec_stride = (4 / data_stride) * data_stride;
-    // for (; i < data_size - 4; i += b1_usable_vec_stride) {
-    //     __m128i sss = initial;
-    //     x = 0;
-
-    //     std::cout << "-- B1 i=" << i << std::endl;
-    //     print_m128i(sss, "sss");
-
-    //     for (; x < xmax - 1; x += 2) {
-    //         std::cout << "- B1 block 2, x: " << x << std::endl;
-    //         __m128i source, source1, source2;
-    //         __m128i pix, mmk;
-
-    //         // Load two coefficients at once
-    //         mmk = _mm_set1_epi32(*(int32_t*)&k[x]);
-    //         print_m128i(mmk, "mmk");
-
-    //         // Load 2 lines
-    //         source1 = _mm_cvtsi32_si128(*(int*)(lineIn + i + data_size * (x + xmin)));
-    //         print_m128i(source1, "source1");
-    //         source2 = _mm_cvtsi32_si128(*(int*)(lineIn + i + data_size * (x + 1 + xmin)));
-    //         print_m128i(source2, "source2");
-
-    //         source = _mm_unpacklo_epi8(source1, source2);
-    //         print_m128i(source, "source");
-    //         pix = _mm_unpacklo_epi8(source, zero);
-    //         print_m128i(pix, "pix");
-    //         sss = _mm_add_epi32(sss, _mm_madd_epi16(pix, mmk));
-    //         print_m128i(sss, "sss");
-    //     }
-
-    //     for (; x < xmax; x++) {
-    //         std::cout << "- B1 block 1, x: " << x << std::endl;
-
-    //         __m128i pix = mm_cvtepu8_epi32(lineIn + i + data_size * (x + xmin));
-    //         print_m128i(pix, "pix");
-    //         __m128i mmk = _mm_set1_epi32(k[x]);
-    //         print_m128i(mmk, "mmk");
-    //         sss = _mm_add_epi32(sss, _mm_madd_epi16(pix, mmk));
-    //         print_m128i(sss, "sss");
-    //     }
-
-    //     std::cout << "--" << std::endl;
-
-    //     sss = _mm_srai_epi32(sss, coefs_precision);
-    //     print_m128i(sss, "sss");
-    //     // print_m128i sss: 25 0 0 0 26 0 0 0 27 0 0 0 X 0 0 0
-    //     sss = _mm_packs_epi32(sss, zero);
-    //     print_m128i(sss, "sss");
-    //     // print_m128i sss: 25 0 26 0 27 0 X 0 0 0 0 0 0 0 0 0
-    //     sss = _mm_packus_epi16(sss, zero);
-    //     print_m128i(sss, "sss");
-    //     // print_m128i sss: 25 26 27 X 0 0 0 0 0 0 0 0 0 0 0 0
-
-    //     if (num_channels == 3)
-    //     {
-    //         // replace X by 0
-    //         auto mask = _mm_set_epi8(
-    //             -1, -1, -1, -1,  -1, -1, -1, -1,  -1, -1, -1, -1,  -1, 2, 1, 0
-    //         );
-    //         sss = _mm_shuffle_epi8(sss, mask);
-    //     }
-    //     print_m128i(sss, "sss");
-    //     // print_m128i sss: 25 26 27 0 0 0 0 0 0 0 0 0 0 0 0 0
-
-    //     auto o = _mm_cvtsi128_si32(sss);
-    //     for (int ch=0; ch < num_channels; ch++) {
-    //         (lineOut + i)[ch] = ((unsigned char *) &o)[ch];
-    //     }
-    // }
-
-    for (; i < data_size; i += data_stride) {
-        __m128i sss = initial;
-        x = 0;
-        std::cout << "-- B0 i=" << i << std::endl;
-
-        for (; x < xmax - 1; x += 2) {
-            std::cout << "- B0 block 2, x: " << x << std::endl;
-            __m128i source, source1, source2;
-            __m128i pix, mmk;
-
-            // Load two coefficients at once
-            mmk = _mm_set1_epi32(*(int32_t*)&k[x]);
-            print_m128i(mmk, "mmk");
-
-            // Load 2 lines
-            source1 = _mm_cvtsi32_si128(*(int*)(lineIn + i + data_size * (x + xmin)));
-            print_m128i(source1, "source1");
-            source2 = _mm_cvtsi32_si128(*(int*)(lineIn + i + data_size * (x + 1 + xmin)));
-            print_m128i(source2, "source2");
-
-            source = _mm_unpacklo_epi8(source1, source2);
-            print_m128i(source, "source");
-            pix = _mm_unpacklo_epi8(source, zero);
-            print_m128i(pix, "pix");
-            sss = _mm_add_epi32(sss, _mm_madd_epi16(pix, mmk));
-            print_m128i(sss, "sss");
-        }
-
-        int output[4] = {0, 0, 0, 0};
-        for (; x < xmax; x++) {
-            std::cout << "- B0 block 1, x: " << x << std::endl;
-            auto p = lineIn + i + data_size * (x + xmin);
-            for (int ch=0; ch < num_channels; ch++) {
-                output[ch] += (*(p + ch) * k[x]);
-            }
-        }
-
-        sss = _mm_add_epi32(sss, _mm_load_si128((__m128i *)output));
-
-        std::cout << "--" << std::endl;
-
-        sss = _mm_srai_epi32(sss, coefs_precision);
-        print_m128i(sss, "sss");
-        // print_m128i sss: 25 0 0 0 26 0 0 0 27 0 0 0 X 0 0 0
-        sss = _mm_packs_epi32(sss, zero);
-        print_m128i(sss, "sss");
-        // print_m128i sss: 25 0 26 0 27 0 X 0 0 0 0 0 0 0 0 0
-        sss = _mm_packus_epi16(sss, zero);
-        print_m128i(sss, "sss");
-        // print_m128i sss: 25 26 27 X 0 0 0 0 0 0 0 0 0 0 0 0
-
-        if (num_channels == 3)
-        {
-            // replace X by 0
-            auto mask = _mm_set_epi8(
-                -1, -1, -1, -1,  -1, -1, -1, -1,  -1, -1, -1, -1,  -1, 2, 1, 0
-            );
-            sss = _mm_shuffle_epi8(sss, mask);
-        }
-        print_m128i(sss, "sss");
-        // print_m128i sss: 25 26 27 0 0 0 0 0 0 0 0 0 0 0 0 0
-
-        auto o = _mm_cvtsi128_si32(sss);
-        for (int ch=0; ch < num_channels; ch++) {
-            (lineOut + i)[ch] = ((unsigned char *) &o)[ch];
-        }
     }
 
     print_data(output, 20 * 1 * 3, "output");

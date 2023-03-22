@@ -27,8 +27,8 @@ def main():
     check_rgb = True
 
     # h, w, c = 256, 256, 3
-    # h, w, c = 8, 28, 3
-    h, w, c = 299, 321, 3
+    h, w, c = 8, 8, 3
+    # h, w, c = 299, 321, 3
     s = w * c
     rgb = list(range(h * s))
     rgba = []
@@ -43,8 +43,9 @@ def main():
 
     # oh, ow = 224, 224
     # oh, ow = h, 24
-    oh, ow = 35, 38
+    # oh, ow = 35, 38
     # oh, ow = 10, w
+    oh, ow = 2, w
     # for oh in range(2, h):
     # for ow in range(2, w):
     # for ow in [7, ]:
@@ -81,7 +82,7 @@ def main():
             output = t_output[0, ...].permute(1, 2, 0)
 
             print("Compare:")
-            print(expected[0, :10, :].ravel().tolist())
+            # print(expected[0, :10, :].ravel().tolist())
             print(output[0, :10, :3].ravel().tolist())
             print("")
 

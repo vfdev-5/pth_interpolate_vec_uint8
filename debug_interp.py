@@ -19,8 +19,8 @@ def main():
     # for mf in ["channels_first", "channels_last"]:
     for mf in ["channels_last", ]:
     # for mf in ["channels_first", ]:
-        # for c, dtype in [(3, torch.uint8), ]:
-        for c, dtype in [(4, torch.uint8), ]:
+        for c, dtype in [(3, torch.uint8), ]:
+        # for c, dtype in [(4, torch.uint8), ]:
         # for c, dtype in [(3, torch.float), ]:
             for size in [8, ]:
 

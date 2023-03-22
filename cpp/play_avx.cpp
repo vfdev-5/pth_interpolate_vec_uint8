@@ -445,6 +445,75 @@ void test__mm_unpacklo_epi8__mm_unpacklo_epi8() {
     print_m128i(pix, "pix");
 }
 
+void test_block4_weights_01() {
+
+    char data[32] = {
+        1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
+        17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32
+    };
+
+    const auto wts_mask_b4 = _mm_set_epi8(
+          3, 2, 3, 2, 3, 2, 3, 2, 1, 0, 1, 0, 1, 0, 1, 0);
+
+    auto wts = _mm_set1_epi32(*(int32_t*)&data[0]);
+    wts = _mm_shuffle_epi8(wts, wts_mask_b4);
+    print_m128i(wts);
+
+    // print_m128i : 1 2 1 2 1 2 1 2 3 4 3 4 3 4 3 4
+}
+
+static inline __m128i mm_cvt_si128(const uint8_t* ptr, int n) {
+  int32_t v;
+  if (n == 2) {
+    std::memcpy(&v, ptr, n);
+  } else if (n == 3) {
+    std::memcpy(&v, ptr, n);
+  } else if (n == 4) {
+    std::memcpy(&v, ptr, n);
+  } else {
+    assert(false);
+  }
+  return _mm_cvtsi32_si128(v);
+}
+
+void test_mm_cvt_si128() {
+
+    char data[32] = {
+        1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
+        17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32
+    };
+
+    auto source = mm_cvt_si128((const uint8_t *) &data[0], 4);
+    print_m128i(source);
+    // print_m128i : 1 2 3 4 0 0 0 0 0 0 0 0 0 0 0 0
+}
+
+void test_block4_source_12() {
+
+    char data[32] = {
+        1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
+        17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32
+    };
+
+    const auto zero = _mm_setzero_si128();
+    const auto one = _mm_set_epi16(1, 1, 1, 1, 1, 1, 1, 1);
+
+    auto source1 = mm_cvt_si128((const uint8_t *) &data[0], 4);
+    auto source2 = mm_cvt_si128((const uint8_t *) &data[16], 4);
+    print_m128i(source1, "source1");
+    print_m128i(source2, "source2");
+    // print_m128i : 1 2 3 4 0 0 0 0 0 0 0 0 0 0 0 0
+    // print_m128i : 17 18 19 20 0 0 0 0 0 0 0 0 0 0 0 0
+    auto source = _mm_unpacklo_epi8(source1, source2);
+    print_m128i(source, "source");
+    // print_m128i source: 1 17 2 18 3 19 4 20 0 0 0 0 0 0 0 0
+    auto pix = _mm_unpacklo_epi8(source, zero);
+    print_m128i(pix, "pix");
+    // print_m128i pix: 1 0 17 0 2 0 18 0 3 0 19 0 4 0 20 0
+
+    auto sss = _mm_add_epi32(zero, _mm_madd_epi16(pix, one));
+    print_m128i(sss, "sss");
+}
 
 int main(int argc, char** argv)
 {
@@ -456,7 +525,7 @@ int main(int argc, char** argv)
 
     // test_mask_load();
 
-    test_mm_cvtepu8_epi32();
+    // test_mm_cvtepu8_epi32();
 
     // test_mm256_load_si256();
 
@@ -475,6 +544,12 @@ int main(int argc, char** argv)
     // test__mm_set1_epi32();
 
     // test__mm_unpacklo_epi8__mm_unpacklo_epi8();
+
+    // test_block4_weights_01();
+
+    // test_mm_cvt_si128();
+
+    test_block4_source_12();
 
     return 0;
 }
