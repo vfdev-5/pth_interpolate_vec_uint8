@@ -26,13 +26,13 @@ def main():
 
     # h, w, c = 256, 256, 3
     # h, w, c = 8, 28, 3
-    h, w, c = 32, 32, 3
+    h, w, c = 4, 20, 3
     s = w * c
     rgb = list(range(h * s))
 
     # oh, ow = 224, 224
     # oh, ow = h, 24
-    oh, ow = 12, w
+    oh, ow = 2, w
     # oh, ow = 10, w
     # for oh in range(2, h):
     # for ow in range(2, w):
@@ -48,7 +48,7 @@ def main():
 
         print("Compare:")
         # print(expected[0, :10, :].ravel().tolist())
-        print(output[0, 0, :10].ravel().tolist())
+        print(output[:, :, :].ravel().tolist())
         print("")
         # np.testing.assert_allclose(expected, output[:, :, :3])
 

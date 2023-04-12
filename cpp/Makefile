@@ -10,8 +10,8 @@ check_resize_avx_rgba: check_resize_avx_rgba.cpp
 	$(CC) check_resize_avx_rgba.cpp -o check_resize_avx_rgba
 
 
-check_resize_avx_rgba_CF: check_resize_avx_rgba_CF.cpp
-	$(CC) check_resize_avx_rgba_CF.cpp -o check_resize_avx_rgba_CF
+check_resize_avx_rgb_CF: check_resize_avx_rgb_CF.cpp
+	$(CC) check_resize_avx_rgb_CF.cpp -o check_resize_avx_rgb_CF
 
 
 play_avx: play_avx.cpp

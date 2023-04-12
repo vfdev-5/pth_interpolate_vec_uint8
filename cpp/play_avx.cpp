@@ -515,7 +515,7 @@ void test_block4_source_12() {
     print_m128i(sss, "sss");
 }
 
-int main(int argc, char** argv)
+int main1(int argc, char** argv)
 {
     // test_1();
 
@@ -552,4 +552,18 @@ int main(int argc, char** argv)
     test_block4_source_12();
 
     return 0;
+}
+
+int foo(int n) {
+    return (n == 0) ? 1 : n * foo(n-1) + 1;
+}
+
+
+int main() {
+    auto i = foo(10);
+    std::cout << "i=" << i << std::endl;
+    return 0;
+//   int a[4] = {1, 2, 3, 4};
+//   int b = 3;
+//   return b + a[5] + 1;
 }

@@ -1,13 +1,21 @@
-// Vectorized interpolation for uint8 RGB Channels First
+// Vectorized interpolation for uint8_t RGB Channels First
 
 #include <iostream>
 #include <immintrin.h>
 #include <cassert>
+#include <cstring>
+#include <algorithm>
 
 
-using uint8 = unsigned char;
+#define TORCH_INTERNAL_ASSERT assert
+#define C10_RESTRICT __restrict
+#define C10_UNLIKELY(expr) (__builtin_expect(static_cast<bool>(expr), 0))
 
-template<typename scalar_t=uint8>
+using uint8_t = unsigned char;
+using uint32_t = unsigned int;
+
+
+template<typename scalar_t=uint8_t>
 void print_m256i(__m256i value, std::string tag="") {
 
     constexpr int64_t size = 256 / (sizeof(scalar_t) * 8);
@@ -89,7 +97,7 @@ static __m256i inline mm256_cvtepu8_epi32(void *ptr) {
 }
 
 
-template<typename scalar_t=uint8>
+template<typename scalar_t=uint8_t>
 void print_m128i(__m128i value, std::string tag="") {
 
     constexpr int64_t size = 128 / (sizeof(scalar_t) * 8);
@@ -104,15 +112,25 @@ void print_m128i(__m128i value, std::string tag="") {
     std::cout << std::endl;
 }
 
+static inline __m128i mm_cvt_si128(const uint8_t* C10_RESTRICT ptr, int n) {
+  int32_t v;
+  if (n == 2) {
+    std::memcpy(&v, ptr, n);
+  } else if (n == 3) {
+    std::memcpy(&v, ptr, n);
+  } else if (n == 4) {
+    std::memcpy(&v, ptr, n);
+  } else {
+    TORCH_INTERNAL_ASSERT(false);
+  }
+  return _mm_cvtsi32_si128(v);
+}
 
 // Vertical pass: ImagingResampleVerticalConvolution8u
 void test_ImagingResampleVerticalConvolution8u()
 {
     // Vertical pass: ImagingResampleVerticalConvolution8u
     // Try to adapt the code for RGB Channels First data
-
-    unsigned char *lineIn;
-    unsigned char *lineOut;
 
     // h, w, c = 4, 20, 3
     // a = list(range(h * w * c))
@@ -124,19 +142,25 @@ void test_ImagingResampleVerticalConvolution8u()
     //     print(b)
 
     constexpr int num_channels = 3;
+    constexpr int width = 20;
+    constexpr int height = 4;
+    constexpr int out_height = 4;
 
-    unsigned char data[4 * 20 * num_channels] = {
+    unsigned char input[height * width * num_channels] = {
         0, 3, 6, 9, 12, 15, 18, 21, 24, 27, 30, 33, 36, 39, 42, 45, 48, 51, 54, 57, 60, 63, 66, 69, 72, 75, 78, 81, 84, 87, 90, 93, 96, 99, 102, 105, 108, 111, 114, 117, 120, 123, 126, 129, 132, 135, 138, 141, 144, 147, 150, 153, 156, 159, 162, 165, 168, 171, 174, 177, 180, 183, 186, 189, 192, 195, 198, 201, 204, 207, 210, 213, 216, 219, 222, 225, 228, 231, 234, 237,
         1, 4, 7, 10, 13, 16, 19, 22, 25, 28, 31, 34, 37, 40, 43, 46, 49, 52, 55, 58, 61, 64, 67, 70, 73, 76, 79, 82, 85, 88, 91, 94, 97, 100, 103, 106, 109, 112, 115, 118, 121, 124, 127, 130, 133, 136, 139, 142, 145, 148, 151, 154, 157, 160, 163, 166, 169, 172, 175, 178, 181, 184, 187, 190, 193, 196, 199, 202, 205, 208, 211, 214, 217, 220, 223, 226, 229, 232, 235, 238,
         2, 5, 8, 11, 14, 17, 20, 23, 26, 29, 32, 35, 38, 41, 44, 47, 50, 53, 56, 59, 62, 65, 68, 71, 74, 77, 80, 83, 86, 89, 92, 95, 98, 101, 104, 107, 110, 113, 116, 119, 122, 125, 128, 131, 134, 137, 140, 143, 146, 149, 152, 155, 158, 161, 164, 167, 170, 173, 176, 179, 182, 185, 188, 191, 194, 197, 200, 203, 206, 209, 212, 215, 218, 221, 224, 227, 230, 233, 236, 239
     };
 
-    unsigned char output[2 * 20 * num_channels] = {};
+    unsigned char output[out_height * width * num_channels] = {};
 
-    lineIn = &data[0];
-    lineOut = &output[0];
+    char * src = (char *) input;
+    char * dst = (char *) output;
 
-    print_data(data, 1 * 20 * num_channels, "input");
+    print_data(&input[0], height * width, "input, c0");
+    print_data(&input[height * width], height * width, "input, c1");
+    print_data(&input[2 * height * width], height * width, "input, c2");
+    printf("\n");
 
     // (20, 4)
     // coefs_precision=16, ksize=5
@@ -146,7 +170,7 @@ void test_ImagingResampleVerticalConvolution8u()
     // k: 9362 28087 28087
     // (20, 2)
 
-    int xsize = 20;
+    // int xsize = 20;
     INT16 kk[5 * 4] = {
         28087, 28087, 9362, 0, 0,
         9362, 28087, 28087, 0, 0,
@@ -154,25 +178,31 @@ void test_ImagingResampleVerticalConvolution8u()
     int ksize = 5;
     int kmax = ksize;
 
-    int coefs_precision = 16;
+    int weights_precision = 16;
 
     int y = 0;
     // int y = 1;
 
-    int xmin, xmax, x;
+    // int xmin, xmax, x;
+    // index stride is constant for the given dimension
+    const int64_t ids_stride = width;
+    int64_t ids_min, ids_size;
+
     if (y == 1) {
-        xmin = 1;
-        xmax = 3;
+        ids_min = width;
+        ids_size = 3;
     } else if (y == 0) {
-        xmin = 0;
-        xmax = 3;
+        ids_min = 0;
+        ids_size = 3;
     }
 
     // xsize = output width, xx = output x index
     // xmax = interpolation size, x = interpolation index (vertical <-> y dimension)
     // xmin = input y start index
 
-    INT16 *k = &kk[y * ksize];
+    const int16_t *wts_ptr = &kk[y * ksize];
+    // const int64_t wts_idx = *(int64_t*)&data[2 + 4][0];
+    // const int16_t* wts_ptr = (int16_t*)&data[2 + 3][wts_idx];
     {
         std::cout << "Weights as int16: " << std::endl;
         for (int i=0; i < kmax; i++) {
@@ -184,7 +214,7 @@ void test_ImagingResampleVerticalConvolution8u()
         }
         std::cout << std::endl;
 
-        std::cout << "Weights as uint8: " << std::endl;
+        std::cout << "Weights as uint8_t: " << std::endl;
         unsigned char * k_ui8 = (unsigned char *) kk;
         for (int i=0; i < 2 * kmax; i++) {
             std::cout << (int) k_ui8[i] << " ";
@@ -198,114 +228,110 @@ void test_ImagingResampleVerticalConvolution8u()
 
     const int64_t strides[2] = {sizeof(uint8_t), sizeof(uint8_t)};
 
-    for (int c=0; c < 3; c++) {
+    const int64_t n = num_channels * width;
+    constexpr auto vec_size = 256 / 8;
 
-        const int64_t n = xsize;
-        constexpr auto vec_size = 256 / 8;
+    int64_t i = 0;
 
-        int64_t i = 0;
+    const auto initial = _mm_set1_epi32(1 << (weights_precision - 1));
+    // __m256i initial_256 = _mm256_set1_epi32(1 << (coefs_precision - 1));
+    const auto zero = _mm_setzero_si128();
+    // auto zero_256 = _mm256_setzero_si256();
 
-        // __m128i initial = _mm_set1_epi32(1 << (coefs_precision - 1));
-        // __m256i initial_256 = _mm256_set1_epi32(1 << (coefs_precision - 1));
-        // auto zero = _mm_setzero_si128();
-        // auto zero_256 = _mm256_setzero_si256();
+    // // Block 4: Read 4 values from input
+    // for (; i < n - 3; i += 4) {
+    //     auto sss = initial;
 
-        // for (; i < data_size; i += data_stride) {
-        //     __m128i sss = initial;
-        //     x = 0;
-        //     std::cout << "-- B0 i=" << i << std::endl;
+    //     int64_t j = 0;
+    //     char* src_min = src + i * strides[1] + ids_min;
 
-        //     for (; x < xmax - 1; x += 2) {
-        //         std::cout << "- B0 block 2, x: " << x << std::endl;
-        //         __m128i source, source1, source2;
-        //         __m128i pix, mmk;
+    //     // for (; j < ids_size - 1; j += 2) {
+    //     //   // wts = [
+    //     //   //    w0_l w0_h w1_l w1_h  w0_l w0_h w1_l w1_h
+    //     //   //    w0_l w0_h w1_l w1_h  w0_l w0_h w1_l w1_h
+    //     //   // ]
+    //     //   auto wts = _mm_set1_epi32(*(int32_t*)&wts_ptr[j]);
 
-        //         // Load two coefficients at once
-        //         mmk = _mm_set1_epi32(*(int32_t*)&k[x]);
-        //         print_m128i(mmk, "mmk");
+    //     //   // Read 8 bytes, 4 bytes per line:
+    //     //   // source1 = [r0 r1 r2 r3  0 0 0 0  0 0 0 0  0 0 0 0]
+    //     //   // source2 = [R0 R1 R2 R3  0 0 0 0  0 0 0 0  0 0 0 0]
+    //     //   // source = [r0 R0 r1 R1  r2 R2 r3 R3  0 0 0 0  0 0 0 0]
+    //     //   // pix = [r0 0 R0 0  r1 0 R1 0  r2 0 R2 0  r3 0 R3 0]
+    //     //   auto source1 = mm_cvt_si128((const uint8_t *) &src_min[j * ids_stride], 4);
+    //     //   auto source2 = mm_cvt_si128((const uint8_t *) &src_min[(j + 1) * ids_stride], 4);
+    //     //   auto source = _mm_unpacklo_epi8(source1, source2);
+    //     //   auto pix = _mm_unpacklo_epi8(source, zero);
+    //     //   // sss = [
+    //     //   //    (r0 * w0) + (R0 * w1)   as int16
+    //     //   //    (r1 * w0) + (R1 * w1)   as int16
+    //     //   //    (r2 * w0) + (R2 * w1)   as int16
+    //     //   //    (r3 * w0) + (R3 * w1)   as int16
+    //     //   // ]
+    //     //   sss = _mm_add_epi32(sss, _mm_madd_epi16(pix, wts));
+    //     // }
 
-        //         // Load 2 lines
-        //         source1 = _mm_cvtsi32_si128(*(int*)(lineIn + i + data_size * (x + xmin)));
-        //         print_m128i(source1, "source1");
-        //         source2 = _mm_cvtsi32_si128(*(int*)(lineIn + i + data_size * (x + 1 + xmin)));
-        //         print_m128i(source2, "source2");
+    //     for (; j < ids_size; j++) {
+    //         // wts = [w0_l w0_h w0_l w0_h  w0_l w0_h w0_l w0_h  ...]
+    //         auto wts = _mm_set1_epi32(wts_ptr[j]);
+    //         // Read 4 bytes:
+    //         // source = [r0 r1 r2 r3  0 0 0 0  0 0 0 0  0 0 0 0]
+    //         // pix = [r0 0 r1 0  r2 0 r3 0  0 0 0 0  0 0 0 0]
+    //         auto source = mm_cvt_si128((const uint8_t *) &src_min[j * ids_stride], 4);
+    //         auto pix = _mm_unpacklo_epi8(source, zero);
+    //         // sss = [(r0 * w0) (r1 * w0)  (r2 * w0) (r3 * w0)  0 0 0 0  0 0 0 0]
+    //         sss = _mm_add_epi32(sss, _mm_madd_epi16(pix, wts));
+    //     }
+    //     sss = _mm_srai_epi32(sss, weights_precision);
+    //     sss = _mm_packs_epi32(sss, zero);
+    //     sss = _mm_packus_epi16(sss, zero);
+    //     auto o = _mm_cvtsi128_si32(sss);
 
-        //         source = _mm_unpacklo_epi8(source1, source2);
-        //         print_m128i(source, "source");
-        //         pix = _mm_unpacklo_epi8(source, zero);
-        //         print_m128i(pix, "pix");
-        //         sss = _mm_add_epi32(sss, _mm_madd_epi16(pix, mmk));
-        //         print_m128i(sss, "sss");
-        //     }
+    //     std::memcpy(&dst[i * strides[0]], (uint8_t *) &o, 4);
+    // }
+    // print_data(output, 20 * 1 * 3, "output");
 
-        //     int output[4] = {0, 0, 0, 0};
-        //     for (; x < xmax; x++) {
-        //         std::cout << "- B0 block 1, x: " << x << std::endl;
-        //         auto p = lineIn + i + data_size * (x + xmin);
-        //         for (int ch=0; ch < num_channels; ch++) {
-        //             output[ch] += (*(p + ch) * k[x]);
-        //         }
-        //     }
+    // Block 1
+    for (; i < n; i++) {
 
-        //     sss = _mm_add_epi32(sss, _mm_load_si128((__m128i *)output));
+        char* src_min = src + i * strides[1] + ids_min;
 
-        //     std::cout << "--" << std::endl;
-
-        //     sss = _mm_srai_epi32(sss, coefs_precision);
-        //     print_m128i(sss, "sss");
-        //     // print_m128i sss: 25 0 0 0 26 0 0 0 27 0 0 0 X 0 0 0
-        //     sss = _mm_packs_epi32(sss, zero);
-        //     print_m128i(sss, "sss");
-        //     // print_m128i sss: 25 0 26 0 27 0 X 0 0 0 0 0 0 0 0 0
-        //     sss = _mm_packus_epi16(sss, zero);
-        //     print_m128i(sss, "sss");
-        //     // print_m128i sss: 25 26 27 X 0 0 0 0 0 0 0 0 0 0 0 0
-
-        //     if (num_channels == 3)
-        //     {
-        //         // replace X by 0
-        //         auto mask = _mm_set_epi8(
-        //             -1, -1, -1, -1,  -1, -1, -1, -1,  -1, -1, -1, -1,  -1, 2, 1, 0
-        //         );
-        //         sss = _mm_shuffle_epi8(sss, mask);
-        //     }
-        //     print_m128i(sss, "sss");
-        //     // print_m128i sss: 25 26 27 0 0 0 0 0 0 0 0 0 0 0 0 0
-
-        //     auto o = _mm_cvtsi128_si32(sss);
-        //     for (int ch=0; ch < num_channels; ch++) {
-        //         (lineOut + i)[ch] = ((unsigned char *) &o)[ch];
-        //     }
-        // }
-
-        // for (; i < n; i++) {
-        //     char* src_min = src + i * strides[1] + ids_min;
-
-        //     uint8_t t = *(uint8_t*)&src_min[0];
-        //     int16_t wts = wts_ptr[0];
-        //     // Intermediate computations are using integer type
-        //     int output = 1 << (weights_precision - 1);  // accounts for the +0.5 part
-        //     output += t * wts;
-        //     for (const auto j : c10::irange(1, ids_size)) {
-        //     wts = wts_ptr[j];
-        //     t = *(uint8_t*)&src_min[j * ids_stride];
-        //     output += t * wts;
-        //     }
-        //     *(uint8_t*)&dst[i * strides[0]] = (uint8_t)std::clamp(output >> weights_precision, 0, 255);
-
-        // }
-
+        uint8_t t = *(uint8_t*)&src_min[0];
+        int16_t wts = wts_ptr[0];
+        // Intermediate computations are using integer type
+        int output = 1 << (weights_precision - 1);  // accounts for the +0.5 part
+        output += t * wts;
+        for (int j=1; j < ids_size; j++) {
+            wts = wts_ptr[j];
+            t = *(uint8_t*)&src_min[j * ids_stride];
+            output += t * wts;
+        }
+        *(uint8_t*)&dst[i * strides[0]] = (uint8_t)std::clamp(output >> weights_precision, 0, 255);
     }
 
-    print_data(output, 20 * 1 * 3, "output");
+    print_data(output, 1 * width * num_channels, "output");
     // print_data output:
-    // Expected: [[43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102]]
-    unsigned char expected[20 * 2 * 3] = {
-        43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102,
-        137, 138, 139, 140, 141, 142, 143, 144, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154, 155, 156, 157, 158, 159, 160, 161, 162, 163, 164, 165, 166, 167, 168, 169, 170, 171, 172, 173, 174, 175, 176, 177, 178, 179, 180, 181, 182, 183, 184, 185, 186, 187, 188, 189, 190, 191, 192, 193, 194, 195, 196
+    // [43, 46, 49, 52, 55, 58, 61, 64, 67, 70, 73, 76, 79, 82, 85, 88, 91, 94, 97, 100,
+    //    137, 140, 143, 146, 149, 152, 155, 158, 161, 164, 167, 170, 173, 176, 179, 182, 185, 188, 191, 194,
+    //  44, 47, 50, 53, 56, 59, 62, 65, 68, 71, 74, 77, 80, 83, 86, 89, 92, 95, 98, 101,
+    //    138, 141, 144, 147, 150, 153, 156, 159, 162, 165, 168, 171, 174, 177, 180, 183, 186, 189, 192, 195,
+    //  45, 48, 51, 54, 57, 60, 63, 66, 69, 72, 75, 78, 81, 84, 87, 90, 93, 96, 99, 102,
+    //    139, 142, 145, 148, 151, 154, 157, 160, 163, 166, 169, 172, 175, 178, 181, 184, 187, 190, 193, 196]
+    unsigned char expected[out_height * width * num_channels] = {
+        43, 46, 49, 52, 55, 58, 61, 64, 67, 70, 73, 76, 79, 82, 85, 88, 91, 94, 97, 100,                     // y=0
+        137, 140, 143, 146, 149, 152, 155, 158, 161, 164, 167, 170, 173, 176, 179, 182, 185, 188, 191, 194,  // y=1
+
+        44, 47, 50, 53, 56, 59, 62, 65, 68, 71, 74, 77, 80, 83, 86, 89, 92, 95, 98, 101,                     // y=0
+        138, 141, 144, 147, 150, 153, 156, 159, 162, 165, 168, 171, 174, 177, 180, 183, 186, 189, 192, 195,  // y=1
+
+        45, 48, 51, 54, 57, 60, 63, 66, 69, 72, 75, 78, 81, 84, 87, 90, 93, 96, 99, 102,                     // y=0
+        139, 142, 145, 148, 151, 154, 157, 160, 163, 166, 169, 172, 175, 178, 181, 184, 187, 190, 193, 196   // y=1
     };
-    for (int i=0; i<(20 * 1 * 3); i++) {
-        assert(output[i] == expected[i + y * 20 * 3]);
+    auto c = 0;
+    for (int k = 0; k < 3; k++) {
+        for (int i = 0; i < 20; i++) {
+            assert(output[c] == expected[k * 20 * 2 + y * 20 + i]);
+            c++;
+        }
     }
 
 }
@@ -346,7 +372,7 @@ void test_ImagingResampleHorizontalConvolution8u4x()
     };
 
     constexpr int num_channels = 3;
-    auto stride = num_channels * 1;  // num channels * sizeof(uint8)
+    auto stride = num_channels * 1;  // num channels * sizeof(uint8_t)
 
     // (9, 8)
     // xx=0, xsize=2, xmin=0, xmax=7, coefs_precision=17
@@ -405,7 +431,7 @@ void test_ImagingResampleHorizontalConvolution8u4x()
             }
             std::cout << std::endl;
 
-            std::cout << "Weights as uint8: " << std::endl;
+            std::cout << "Weights as uint8_t: " << std::endl;
             unsigned char * k_ui8 = (unsigned char *) kk;
             for (int i=0; i < 2 * kmax; i++) {
                 std::cout << (int) k_ui8[i] << " ";
@@ -768,7 +794,7 @@ void test_ImagingResampleHorizontalConvolution8u()
     };
 
     constexpr int num_channels = 3;
-    auto stride = num_channels * 1;  // num channels * sizeof(uint8)
+    auto stride = num_channels * 1;  // num channels * sizeof(uint8_t)
 
     // (18, 2)
     // xx=0, xsize=2, xmin=0, xmax=14, coefs_precision=17

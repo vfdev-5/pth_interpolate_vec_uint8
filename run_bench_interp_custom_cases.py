@@ -161,28 +161,64 @@ def run_benchmark(c, dtype, size, osize, aa, mode, mf="channels_first", min_run_
 
 def main(
     output_filepath: str,
-    min_run_time: int = 10,
+    min_run_time: int = 15,
     tag: str = "",
     display: bool = True,
     with_torchvision: bool = False,
+    extended_test_cases=True
 ):
 
     output_filepath = Path(output_filepath)
 
     test_results = []
-    for mf in ["channels_last", "channels_first"]:
+    # for mf in ["channels_last", "channels_first"]:
+    for mf in ["channels_first", "channels_last"]:
+    # for mf in ["channels_first", ]:
         for c, dtype in [
             (3, torch.uint8),
+            # (3, torch.float32),
+            (4, torch.uint8),
         ]:
+            # for size in [256, 520, 712]:
+            # # for size in [520, 712]:
+            #     if isinstance(size, int):
+            #         size = (size, size)
+
+            #     osize_aa_mode_list = [
+            #         # (32, True, "bilinear"),
+            #         (32, False, "bilinear"),
+            #         (224, True, "bilinear"),
+            #         # (224, False, "bilinear"),
+            #     ]
+
+            #     if size == (256, 256):
+            #         osize_aa_mode_list += [
+            #             (320, True, "bilinear"),
+            #             (320, False, "bilinear"),
+            #         ]
+
+            #     for osize, aa, mode in osize_aa_mode_list:
+            #         if isinstance(osize, int):
+            #             osize = (osize, osize)
+
+            #         test_results += run_benchmark(
+            #             c=c, dtype=dtype, size=size,
+            #             osize=osize, aa=aa, mode=mode, mf=mf,
+            #             min_run_time=min_run_time, tag=tag, with_torchvision=with_torchvision
+            #         )
+
+            # if not extended_test_cases:
+            #     continue
+
             for aa in [True, False]:
                 mode = "bilinear"
 
                 size_osize_list = [
-                    (64, 224),
-                    (224, (270, 268)),
-                    (256, (1024, 1024)),
-                    (224, 64),
-                    ((270, 268), 224),
+                    # (64, 224),
+                    # (224, (270, 268)),
+                    # (256, (1024, 1024)),
+                    # (224, 64),
+                    # ((270, 268), 224),
                     (1024, 256),
                 ]
 

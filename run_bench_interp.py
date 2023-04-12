@@ -174,6 +174,7 @@ def main(
     for mf in ["channels_last", "channels_first"]:
         for c, dtype in [
             (3, torch.uint8),
+            # (3, torch.float32),
             (4, torch.uint8),
         ]:
             for size in [256, 520, 712]:
