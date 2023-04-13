@@ -165,19 +165,28 @@ def main(
     tag: str = "",
     display: bool = True,
     with_torchvision: bool = False,
-    extended_test_cases=True
+    extended_test_cases=True,
+    num_threads=1,
 ):
-
+    torch.set_num_threads(num_threads)
     output_filepath = Path(output_filepath)
 
+    from datetime import datetime
+
+    print(f"Timestamp: {datetime.now().strftime('%Y%m%d-%H%M%S')}")
+    print(f"Torch version: {torch.__version__}")
+    print(f"Torch config: {torch.__config__.show()}")
+    print(f"Num threads: {torch.get_num_threads()}")
+    print("")
+    print("PIL version: ", PIL.__version__)
+
     test_results = []
-    # for mf in ["channels_last", "channels_first"]:
     for mf in ["channels_first", "channels_last"]:
-    # for mf in ["channels_first", ]:
+    # for mf in ["channels_last", ]:
         for c, dtype in [
             (3, torch.uint8),
             # (3, torch.float32),
-            (4, torch.uint8),
+            # (4, torch.uint8),
         ]:
             # for size in [256, 520, 712]:
             # # for size in [520, 712]:
@@ -211,14 +220,16 @@ def main(
             #     continue
 
             for aa in [True, False]:
+            # for aa in [False, ]:
                 mode = "bilinear"
 
                 size_osize_list = [
-                    # (64, 224),
-                    # (224, (270, 268)),
+                    (64, 224),
+                    (224, (270, 268)),
                     # (256, (1024, 1024)),
-                    # (224, 64),
-                    # ((270, 268), 224),
+                    (224, 64),
+                    ((270, 268), 224),
+                    (256, 224),
                     (1024, 256),
                 ]
 
@@ -254,16 +265,5 @@ def main(
 
 
 if __name__ == "__main__":
-
-    torch.set_num_threads(1)
-
-    from datetime import datetime
-
-    print(f"Timestamp: {datetime.now().strftime('%Y%m%d-%H%M%S')}")
-    print(f"Torch version: {torch.__version__}")
-    print(f"Torch config: {torch.__config__.show()}")
-    print(f"Num threads: {torch.get_num_threads()}")
-    print("")
-    print("PIL version: ", PIL.__version__)
 
     fire.Fire(main)
