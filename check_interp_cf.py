@@ -61,7 +61,14 @@ def main(min_run_time=10.0):
     for mf in ["channels_first", ]:
         for size in [256, ]:
             for osize, aa, mode in [
-                ((224, 224), True, "bilinear"),
+                # ((224, 224), True, "bilinear"),
+
+                # Vertical pass
+                # ((224, 256), True, "bilinear"),
+
+                # Horizontal pass
+                ((256, 224), True, "bilinear"),
+
                 # ((224, 224), False, "bilinear"),
             ]:
                 for c, dtype in [
@@ -80,11 +87,32 @@ def main(min_run_time=10.0):
                     else:
                         tensor = torch.randint(0, 256, size=(c, size, size), dtype=dtype)
 
+                    pil_img = None
+                    if dtype == torch.uint8 and c == 3 and aa:
+                        np_array = tensor.clone().permute(1, 2, 0).contiguous().numpy()
+                        pil_img = PIL.Image.fromarray(np_array)
+
                     memory_format = torch.channels_last if mf == "channels_last" else torch.contiguous_format
                     tensor = tensor[None, ...].contiguous(memory_format=memory_format)
 
                     output = pth_downsample_i8(tensor, mode=mode, size=osize, aa=aa)
                     output = output[0, ...]
+
+                    if pil_img is not None:
+                        results.append(
+                            benchmark.Timer(
+                                # pil_img = pil_img.resize((osize, osize), resample=resampling_map[mode])
+                                stmt=f"data.resize({osize[::-1]}, resample=resample_val)",
+                                globals={
+                                    "data": pil_img,
+                                    "resample_val": resampling_map[mode],
+                                },
+                                num_threads=torch.get_num_threads(),
+                                label="Resize",
+                                sub_label=f"{c} {dtype} {mf} {mode} {size} -> {osize} aa={aa}",
+                                description=f"Pillow ({PIL.__version__})",
+                            ).blocked_autorange(min_run_time=min_run_time)
+                        )
 
                     # Tensor interp
                     results.append(

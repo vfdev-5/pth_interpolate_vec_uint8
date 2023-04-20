@@ -26,13 +26,15 @@ def main():
 
     # h, w, c = 256, 256, 3
     # h, w, c = 8, 28, 3
-    h, w, c = 4, 20, 3
+    # h, w, c = 4, 20, 3
+    h, w, c = 2, 18, 3
     s = w * c
     rgb = list(range(h * s))
 
     # oh, ow = 224, 224
     # oh, ow = h, 24
-    oh, ow = 2, w
+    # oh, ow = 2, w
+    oh, ow = h, 5
     # oh, ow = 10, w
     # for oh in range(2, h):
     # for ow in range(2, w):

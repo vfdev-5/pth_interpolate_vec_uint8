@@ -74,6 +74,27 @@ $15 = {2341, 7022, 11703, 16384, 16384, 11703, 0, 0, 0}
 # print(oo[1, :, :].tolist())
 
 
+# #### Vertical pass
+
+# import numpy as np
+# from PIL import Image
+
+# i = np.arange(4 * 20 * 3, dtype="uint8").reshape(4, 20, 3)
+# print(i[:, :, 0])
+# print(i[:, :, 1])
+# print(i[:, :, 2])
+
+# i = Image.fromarray(i)
+# print(i.size)
+
+# o = i.resize([20, 2], 2)
+# print(o.size)
+# oo = np.asarray(o)
+
+# print(oo[:, :, 0].ravel().tolist())
+# print(oo[:, :, 1].ravel().tolist())
+# print(oo[:, :, 2].ravel().tolist())
+
 #### Horizontal pass
 
 import numpy as np
@@ -91,4 +112,6 @@ o = i.resize([2, 2], 2)
 print(o.size)
 oo = np.asarray(o)
 
-print(oo[:, :, :].tolist())
+print(oo[:, :, 0].ravel().tolist())
+print(oo[:, :, 1].ravel().tolist())
+print(oo[:, :, 2].ravel().tolist())

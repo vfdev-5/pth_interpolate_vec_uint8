@@ -1217,9 +1217,9 @@ Times are in microseconds (us).
 ```
 
 ```
-export fileprefix=$(date "+%Y%m%d-%H%M%S") && ATEN_CPU_CAPABILITY=default python -u run_bench_interp2.py output/${fileprefix}-default-cpu_cap-pt2.0.pkl --tag=PT2.0 --with_torchvision &> output/${fileprefix}-pt2.0.log
+export fileprefix=$(date "+%Y%m%d-%H%M%S") && ATEN_CPU_CAPABILITY=default python -u run_bench_interp_custom_cases.py output/${fileprefix}-default-cpu_cap-pt2.1.pkl --tag=PT2.1 --with_torchvision &> output/${fileprefix}-pt2.1.log
 
-python perf_results_compute_speedup.py output/20230316-162354-pt2.0_vs_torchvision_speedup.md "['output/20230316-162354-default-cpu-cap-pt2.0.pkl',]" --col1="torch (2.1.0a0+git5309c44) PT2.0" --col2="torchvision resize" --description="Speed-up: PTH vs TV"
+python perf_results_compute_speedup.py output/20230413-162514-default-cpu_cap-pt2.1_vs_torchvision_speedup.md "['output/20230413-162514-default-cpu_cap-pt2.1.pkl',]" --col1="torch (2.1.0a0+git2b75955) PT2.1" --col2="torchvision resize" --description="Speed-up: PTH vs TV"
 ```
 
 ```

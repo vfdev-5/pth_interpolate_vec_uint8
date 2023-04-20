@@ -76,7 +76,7 @@ else:
     }
 
 
-def main(output_path: str, is_ref: bool):
+def main(output_path: str, is_ref: bool = False):
 
     for ac in [True, False]:
         for mf in ["channels_first", "channels_last"]:
