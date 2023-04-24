@@ -1094,11 +1094,18 @@ python -u run_bench_interp.py "output/$(date "+%Y%m%d-%H%M%S")-pr.pkl" --tag=PR 
 ```
 
 
+#### Multi-cols perf_results_compute_speedup script
+
+```
+python -u perf_results_compute_speedup_v2.py output/test-multicols_pr_vs_nightly-speedup.md 'output/20230327-114043-pr.pkl' 'output/20230327-111746-nightly.pkl' --compare "torch (2.1.0a0+git90861e5) PR;torch (2.1.0a0+git2b75955) nightly;speed-up PR vs Nightly" --compare "Pillow (9.0.0.post1);torch (2.1.0a0+git90861e5) PR"
+```
+
+
 
 ## Output consistency with master pytorch
 
 ```
-pip install fire
+pip install fire typer
 
 # On pytorch-nightly or 1.13.1
 python verif_interp2.py verif_expected --is_ref=True
