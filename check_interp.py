@@ -67,20 +67,20 @@ def main(min_run_time=7.0, debug=False, use_perf=False, check_consistency=True):
         # for size in [270, ]:
             for osize, aa, mode in [
                 ((224, 224), True, "bilinear"),
-                # ((224, 224), False, "bilinear"),
-                ((32, 32), True, "bilinear"),
+                ((224, 224), False, "bilinear"),
+                # ((32, 32), True, "bilinear"),
                 # # ((32, 32), False, "bilinear"),
 
                 # Horizontal only
-                ((size, int(size * 224 / 256)), True, "bilinear"),
+                # ((size, int(size * 224 / 256)), True, "bilinear"),
                 # ((size, int(size * 224 / 256)), False, "bilinear"),
                 # ((size, 224), True, "bilinear"),
-                ((size, 227), True, "bilinear"),
+                # ((size, 227), True, "bilinear"),
                 # ((size, 224), False, "bilinear"),
                 # Vertical only
-                ((int(size * 224 / 256), size), True, "bilinear"),
+                # ((int(size * 224 / 256), size), True, "bilinear"),
                 # ((int(size * 224 / 256), size), False, "bilinear"),
-                ((227, size), True, "bilinear"),
+                # ((227, size), True, "bilinear"),
                 # ((224, size), False, "bilinear"),
                 # ((32, size), False, "bilinear"),
             ]:
@@ -172,7 +172,7 @@ def main(min_run_time=7.0, debug=False, use_perf=False, check_consistency=True):
                     # results.append(
                     #     benchmark.Timer(
                     #         # expected_ten = pth_downsample(tensor, mode, osize, aa)
-                    #         stmt=f"fn(data, mode='{mode}', size=({osize}, {osize}), aa={aa})",
+                    #         stmt=f"fn(data, mode='{mode}', size=osize, aa={aa})",
                     #         globals={
                     #             "data": tensor,
                     #             "fn": pth_downsample
@@ -183,6 +183,26 @@ def main(min_run_time=7.0, debug=False, use_perf=False, check_consistency=True):
                     #         description=f"torch ({torch.__version__}) {tag} (float)",
                     #     ).blocked_autorange(min_run_time=min_run_time)
                     # )
+
+                    compiled_pth_downsample_i8 = torch.compile(pth_downsample_i8)
+                    # Compile
+                    _ = compiled_pth_downsample_i8(tensor, mode=mode, size=osize, aa=aa)
+
+                    # torch compile Tensor interp
+                    results.append(
+                        benchmark.Timer(
+                            # expected_ten = pth_downsample(tensor, mode, osize, aa)
+                            stmt=f"fn(data, mode='{mode}', size={osize}, aa={aa})",
+                            globals={
+                                "data": tensor,
+                                "fn": compiled_pth_downsample_i8
+                            },
+                            num_threads=torch.get_num_threads(),
+                            label="Resize",
+                            sub_label=f"{c} {dtype} {mf} {mode} {size} -> {osize} aa={aa}",
+                            description=f"torch ({torch.__version__}) {tag} (torch compile)",
+                        ).blocked_autorange(min_run_time=min_run_time)
+                    )
 
 
     compare = benchmark.Compare(results)
