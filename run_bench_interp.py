@@ -68,7 +68,7 @@ def patched_as_column_strings(self):
     return output
 
 
-def run_benchmark(c, dtype, size, osize, aa, mode, mf="channels_first", min_run_time=10, tag="", with_torchvision=False):
+def run_benchmark(c, dtype, size, osize, aa, mode, mf="channels_first", min_run_time=10, tag="", with_torchvision=False, with_pillow=True):
     results = []
     torch.manual_seed(12)
 
@@ -85,7 +85,7 @@ def run_benchmark(c, dtype, size, osize, aa, mode, mf="channels_first", min_run_
 
     expected_pil = None
     pil_img = None
-    if dtype == torch.uint8 and c == 3 and aa:
+    if with_pillow and dtype == torch.uint8 and c == 3 and aa:
         np_array = tensor.clone().permute(1, 2, 0).contiguous().numpy()
         pil_img = PIL.Image.fromarray(np_array)
         output_pil_img = pil_img.resize(osize[::-1], resample=resampling_map[mode])
@@ -165,10 +165,21 @@ def main(
     tag: str = "",
     display: bool = True,
     with_torchvision: bool = False,
-    extended_test_cases=True
+    with_pillow: bool = True,
+    extended_test_cases=True,
+    num_threads=1,
 ):
-
+    torch.set_num_threads(num_threads)
     output_filepath = Path(output_filepath)
+
+    from datetime import datetime
+
+    print(f"Timestamp: {datetime.now().strftime('%Y%m%d-%H%M%S')}")
+    print(f"Torch version: {torch.__version__}")
+    print(f"Torch config: {torch.__config__.show()}")
+    print(f"Num threads: {torch.get_num_threads()}")
+    print("")
+    print("PIL version: ", PIL.__version__)
 
     test_results = []
     for mf in ["channels_last", "channels_first"]:
@@ -201,7 +212,7 @@ def main(
                     test_results += run_benchmark(
                         c=c, dtype=dtype, size=size,
                         osize=osize, aa=aa, mode=mode, mf=mf,
-                        min_run_time=min_run_time, tag=tag, with_torchvision=with_torchvision
+                        min_run_time=min_run_time, tag=tag, with_torchvision=with_torchvision, with_pillow=with_pillow,
                     )
 
             if not extended_test_cases:
@@ -229,7 +240,8 @@ def main(
                     test_results += run_benchmark(
                         c=c, dtype=dtype, size=size,
                         osize=osize, aa=aa, mode=mode, mf=mf,
-                        min_run_time=min_run_time, tag=tag, with_torchvision=with_torchvision
+                        min_run_time=min_run_time, tag=tag,
+                        with_torchvision=with_torchvision, with_pillow=with_pillow,
                     )
 
     with open(output_filepath, "wb") as handler:
@@ -251,16 +263,5 @@ def main(
 
 
 if __name__ == "__main__":
-
-    torch.set_num_threads(1)
-
-    from datetime import datetime
-
-    print(f"Timestamp: {datetime.now().strftime('%Y%m%d-%H%M%S')}")
-    print(f"Torch version: {torch.__version__}")
-    print(f"Torch config: {torch.__config__.show()}")
-    print(f"Num threads: {torch.get_num_threads()}")
-    print("")
-    print("PIL version: ", PIL.__version__)
 
     fire.Fire(main)

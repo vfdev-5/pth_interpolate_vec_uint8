@@ -43,7 +43,6 @@ def pth_downsample_force_float(img, mode, size, aa=True, ac=False):
 
 
 def store_expected(tensor, output, output_path, seed, mf, c, dtype, size, mode, osize, aa, ac):
-    output_path = Path(output_path)
     if not output_path.exists():
         output_path.mkdir(parents=True)
     filepath = output_path / f"{seed}_{mf}_{c}_{dtype}_{size[0]}_{size[1]}_{mode}_{osize[0]}_{osize[1]}_{aa}_{ac}.pt"
@@ -54,7 +53,6 @@ def store_expected(tensor, output, output_path, seed, mf, c, dtype, size, mode, 
 
 
 def get_expected(tensor, output_path, seed, mf, c, dtype, size, mode, osize, aa, ac):
-    output_path = Path(output_path)
     filepath = output_path / f"{seed}_{mf}_{c}_{dtype}_{size[0]}_{size[1]}_{mode}_{osize[0]}_{osize[1]}_{aa}_{ac}.pt"
     obj = torch.load(filepath)
     inpt = obj["input"]
@@ -76,10 +74,66 @@ else:
     }
 
 
+def test_consistency_or_record(
+    expected_pil, tensor, c, size, mf, dtype, mode, osize, aa, ac, is_ref, output_path, seed
+):
+    # Tested op -> output
+    if is_ref:
+        # # When there is no reference code, we can use float32 intermediate dtype
+        # if dtype in (torch.float32, torch.uint8):
+        if dtype in (torch.float32, ):
+            output = pth_downsample(tensor, mode, osize, aa, ac)
+        else:
+            output = pth_downsample_force_float(tensor, mode, osize, aa, ac)
+    else:
+        output = pth_downsample(tensor, mode, osize, aa, ac)
+
+    # Expected result:
+    if is_ref:
+        if output is not None:
+            print(" -> store output")
+            store_expected(tensor, output, output_path, seed, mf, c, dtype, size, mode, osize, aa, ac)
+        else:
+            print("")
+        return
+
+    print(" -> get expected from file")
+    expected_ten = get_expected(tensor, output_path, seed, mf, c, dtype, size, mode, osize, aa, ac)
+
+    if not ac and expected_pil is not None:
+        abs_diff = torch.abs(expected_pil.float() - output.float())
+        mae = torch.mean(abs_diff)
+        max_abs_err = torch.max(abs_diff)
+
+        if mode == "bilinear":
+            assert mae.item() < 1.0, mae.item()
+            assert max_abs_err.item() < 1.0 + 1e-5, max_abs_err.item()
+
+    expected_mf = torch.channels_last if expected_ten.is_contiguous(memory_format=torch.channels_last) else torch.contiguous_format
+    output_mf = torch.channels_last if output.is_contiguous(memory_format=torch.channels_last) else torch.contiguous_format
+    assert expected_mf == output_mf, (expected_mf, output_mf)
+
+    abs_diff = torch.abs(expected_ten.float() - output.float())
+    mae = torch.mean(abs_diff)
+    max_abs_err = torch.max(abs_diff)
+
+    if mode == "bilinear":
+
+        # torch.testing.assert_close(expected_ten, output)
+
+        assert mae.item() < 1.0, mae.item()
+        max_abs_err_tol = 2.0
+        m = abs_diff > 1.5
+        assert max_abs_err.item() < max_abs_err_tol + 1e-5, \
+            (max_abs_err.item(), expected_ten.float()[m], output.float()[m])
+
+
 def main(output_path: str, is_ref: bool = False):
 
+    output_path = Path(output_path)
+
     for ac in [True, False]:
-        for mf in ["channels_first", "channels_last"]:
+        for mf in ["channels_last", "channels_first", ]:
             for c, dtype in [
                 (3, torch.uint8),
                 (1, torch.uint8),
@@ -138,50 +192,21 @@ def main(output_path: str, is_ref: bool = False):
                         memory_format = torch.channels_last if mf == "channels_last" else torch.contiguous_format
                         tensor = tensor[None, ...].contiguous(memory_format=memory_format)
 
-                        # Tested op -> output
-                        if is_ref:
-                            # # When there is no reference code, we can use float32 intermediate dtype
-                            if dtype in (torch.float32, torch.uint8):
-                                output = pth_downsample(tensor, mode, osize, aa, ac)
-                            else:
-                                output = pth_downsample_force_float(tensor, mode, osize, aa, ac)
-                        else:
-                            output = pth_downsample(tensor, mode, osize, aa, ac)
+                        print(".", end=" ")
+                        test_consistency_or_record(
+                            expected_pil, tensor, c, size, mf, dtype, mode, osize, aa, ac, is_ref, output_path, seed
+                        )
 
-                        # Expected result:
-                        if is_ref:
-                            if output is not None:
-                                print(" -> store output")
-                                store_expected(tensor, output, output_path, seed, mf, c, dtype, size, mode, osize, aa, ac)
-                            else:
-                                print("")
-                            continue
+                        # Check specifically squeeze/unsqueeze on batch dimension
+                        # There is an inconsistency with interpolate on output mem format
+                        # if input is unsqueezed 3D CL tensor, output is 4D CF tensor
+                        tensor = tensor[0, ...]
+                        tensor = tensor[None, ...]
 
-                        print(" -> get expected from file")
-                        expected_ten = get_expected(tensor, output_path, seed, mf, c, dtype, size, mode, osize, aa, ac)
-
-                        if not ac and expected_pil is not None:
-                            abs_diff = torch.abs(expected_pil.float() - output.float())
-                            mae = torch.mean(abs_diff)
-                            max_abs_err = torch.max(abs_diff)
-
-                            if mode == "bilinear":
-                                assert mae.item() < 1.0, mae.item()
-                                assert max_abs_err.item() < 1.0 + 1e-5, max_abs_err.item()
-
-                        abs_diff = torch.abs(expected_ten.float() - output.float())
-                        mae = torch.mean(abs_diff)
-                        max_abs_err = torch.max(abs_diff)
-
-                        if mode == "bilinear":
-
-                            torch.testing.assert_close(expected_ten, output)
-
-                            # assert mae.item() < 1.0, mae.item()
-                            # max_abs_err_tol = 1.0
-                            # m = abs_diff > 1.5
-                            # assert max_abs_err.item() < max_abs_err_tol + 1e-5, \
-                            #     (max_abs_err.item(), expected_ten.float()[m], output.float()[m])
+                        print("..", end=" ")
+                        test_consistency_or_record(
+                            expected_pil, tensor, c, size, mf, dtype, mode, osize, aa, ac, is_ref, output_path / "sq_unsq", seed
+                        )
 
 
 if __name__ == "__main__":

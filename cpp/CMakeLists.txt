@@ -16,6 +16,10 @@ find_package(Torch REQUIRED)
 # set_property(TARGET check_ti_channels_last PROPERTY CXX_STANDARD 14)
 
 
-add_executable(profile_vect_interp profile_vect_interp.cpp)
-target_link_libraries(profile_vect_interp PUBLIC ${TORCH_LIBRARIES})
-set_property(TARGET profile_vect_interp PROPERTY CXX_STANDARD 17)
+# add_executable(profile_vect_interp profile_vect_interp.cpp)
+# target_link_libraries(profile_vect_interp PUBLIC ${TORCH_LIBRARIES})
+# set_property(TARGET profile_vect_interp PROPERTY CXX_STANDARD 17)
+
+add_executable(check_mem_format_3d_input check_mem_format_3d_input.cpp)
+target_link_libraries(check_mem_format_3d_input PUBLIC ${TORCH_LIBRARIES})
+set_property(TARGET check_mem_format_3d_input PROPERTY CXX_STANDARD 17)

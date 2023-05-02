@@ -978,14 +978,14 @@ void test_ImagingResampleHorizontalConvolution8u()
 
 
       // Block 4
-    //   for (; i < n - 3; i += 4) {
-    //     int64_t ids_min = xbounds[i * xsize + 0];
-    //     int64_t ids_size = xbounds[i * xsize + 1];
+      for (; i < n - 3; i += 4) {
+        int64_t ids_min = xbounds[i * xsize + 0];
+        int64_t ids_size = xbounds[i * xsize + 1];
 
-    //     auto sss = initial;
+        auto sss = initial;
 
-    //     int64_t j = 0;
-    //     char* src_min = src + i * strides[1] + ids_min;
+        int64_t j = 0;
+        char* src_min = src + i * strides[1] + ids_min;
 
         // for (; j < ids_size - 1; j += 2) {
         //   // wts = [
@@ -1015,40 +1015,43 @@ void test_ImagingResampleHorizontalConvolution8u()
         //   sss = _mm_add_epi32(sss, _mm_madd_epi16(pix, wts));
         // }
 
-        //   for (; j < ids_size; j++) {
-        //     // wts = [w0_l w0_h 0 0  w0_l w0_h 0 0  ...]
-        //     auto wts = _mm_set1_epi32(wts_ptr[j]);
+          for (; j < ids_size; j++) {
+            // wts = [w0_l w0_h 0 0  w0_l w0_h 0 0  ...]
+            auto wts = _mm_set1_epi32(wts_ptr[j]);
 
-        //     std::cout << "b4 - j=" << j << std::endl;
-        //     print_m128i(wts, "wts");
-        //     // Read 4 bytes:
-        //     // source = [r00 r10 r20 r30  0 0 0 0  0 0 0 0  0 0 0 0]
-        //     // pix    = [r00 0 0 0    r10 0 0 0 r20 0 0 0 r30 0 0 0]
-        //     auto source = mm_cvt_multi_si128(
-        //         (const uint8_t *) &src_min[j * ids_stride + 0 * width],
-        //         (const uint8_t *) &src_min[j * ids_stride + 1 * width],
-        //         (const uint8_t *) &src_min[j * ids_stride + 2 * width,]
-        //         (const uint8_t *) &src_min[j * ids_stride + 2 * width]);
-        //     print_m128i(source, "source");
-        //     auto pix = _mm_shuffle_epi8(source, mask_src_b4_1);
-        //     print_m128i(pix, "pix");
+            std::cout << "b4 - j=" << j << std::endl;
+            print_m128i(wts, "wts");
+            // Read 4 bytes:
 
-        //     // NOT SURE ABOUT THIS COMMENT
-        //     // sss += [(r0 * w0) 0 0  (r1 * w0) 0 0  (r2 * w0) 0 0  (r3 * w0) 0 0]
-        //     sss = _mm_add_epi32(sss, _mm_madd_epi16(pix, wts));
-        //     print_m128i(sss, "sss");
-        //   }
-        //   print_m128i(sss, "1 sss");
-        //   sss = _mm_srai_epi32(sss, weights_precision);
-        //   print_m128i(sss, "2 sss");
-        //   sss = _mm_packs_epi32(sss, zero);
-        //   print_m128i(sss, "3 sss");
-        //   sss = _mm_packus_epi16(sss, zero);
-        //   print_m128i(sss, "4 sss");
-        //   auto o = _mm_cvtsi128_si32(sss);
+            // source = [r00 r10 r20 r30  0 0 0 0  0 0 0 0  0 0 0 0]
+            // pix    = [r00 0 0 0    r10 0 0 0 r20 0 0 0 r30 0 0 0]
 
-        //   std::memcpy(&dst[i * strides[0]], (uint8_t *) &o, 4);
-        // }
+
+            auto source = mm_cvt_multi_si128(
+                (const uint8_t *) &src_min[j * ids_stride + 0 * width],
+                (const uint8_t *) &src_min[j * ids_stride + 1 * width],
+                (const uint8_t *) &src_min[j * ids_stride + 2 * width,]
+                (const uint8_t *) &src_min[j * ids_stride + 3 * width]);
+            print_m128i(source, "source");
+            auto pix = _mm_shuffle_epi8(source, mask_src_b4_1);
+            print_m128i(pix, "pix");
+
+            // NOT SURE ABOUT THIS COMMENT
+            // sss += [(r0 * w0) 0 0  (r1 * w0) 0 0  (r2 * w0) 0 0  (r3 * w0) 0 0]
+            sss = _mm_add_epi32(sss, _mm_madd_epi16(pix, wts));
+            print_m128i(sss, "sss");
+          }
+          print_m128i(sss, "1 sss");
+          sss = _mm_srai_epi32(sss, weights_precision);
+          print_m128i(sss, "2 sss");
+          sss = _mm_packs_epi32(sss, zero);
+          print_m128i(sss, "3 sss");
+          sss = _mm_packus_epi16(sss, zero);
+          print_m128i(sss, "4 sss");
+          auto o = _mm_cvtsi128_si32(sss);
+
+          std::memcpy(&dst[i * strides[0]], (uint8_t *) &o, 4);
+        }
 
       // Block 1
       for (; i < n; i++) {
