@@ -212,7 +212,8 @@ def main(
                     test_results += run_benchmark(
                         c=c, dtype=dtype, size=size,
                         osize=osize, aa=aa, mode=mode, mf=mf,
-                        min_run_time=min_run_time, tag=tag, with_torchvision=with_torchvision, with_pillow=with_pillow,
+                        min_run_time=min_run_time, tag=tag,
+                        with_torchvision=with_torchvision, with_pillow=with_pillow,
                     )
 
             if not extended_test_cases:

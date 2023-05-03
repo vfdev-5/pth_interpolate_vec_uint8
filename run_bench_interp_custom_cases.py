@@ -68,7 +68,7 @@ def patched_as_column_strings(self):
     return output
 
 
-def run_benchmark(c, dtype, size, osize, aa, mode, mf="channels_first", min_run_time=10, tag="", with_torchvision=False):
+def run_benchmark(c, dtype, size, osize, aa, mode, mf="channels_first", min_run_time=10, tag="", with_torchvision=False, with_pillow=True, squeeze_unsqueeze_zero=False):
     results = []
     torch.manual_seed(12)
 
@@ -85,7 +85,7 @@ def run_benchmark(c, dtype, size, osize, aa, mode, mf="channels_first", min_run_
 
     expected_pil = None
     pil_img = None
-    if dtype == torch.uint8 and c == 3 and aa:
+    if with_pillow and dtype == torch.uint8 and c == 3 and aa:
         np_array = tensor.clone().permute(1, 2, 0).contiguous().numpy()
         pil_img = PIL.Image.fromarray(np_array)
         output_pil_img = pil_img.resize(osize[::-1], resample=resampling_map[mode])
@@ -93,6 +93,13 @@ def run_benchmark(c, dtype, size, osize, aa, mode, mf="channels_first", min_run_
 
     memory_format = torch.channels_last if mf == "channels_last" else torch.contiguous_format
     tensor = tensor[None, ...].contiguous(memory_format=memory_format)
+
+
+    squeeze_unsqueeze_zero_label = ""
+    if squeeze_unsqueeze_zero:
+        squeeze_unsqueeze_zero_label = "(squeeze/unsqueeze)"
+        tensor = tensor[0, ...]
+        tensor = tensor[None, ...]
 
     output = pth_downsample_i8(tensor, mode=mode, size=osize, aa=aa)
     output = output[0, ...]
@@ -135,7 +142,7 @@ def run_benchmark(c, dtype, size, osize, aa, mode, mf="channels_first", min_run_
             },
             num_threads=torch.get_num_threads(),
             label="Resize",
-            sub_label=f"{c} {dtype} {mf} {mode} {size} -> {osize} aa={aa}",
+            sub_label=f"{c} {dtype} {mf}{squeeze_unsqueeze_zero_label} {mode} {size} -> {osize} aa={aa}",
             description=f"torch ({torch.__version__}) {tag}",
         ).blocked_autorange(min_run_time=min_run_time)
     )
@@ -151,7 +158,7 @@ def run_benchmark(c, dtype, size, osize, aa, mode, mf="channels_first", min_run_
                 },
                 num_threads=torch.get_num_threads(),
                 label="Resize",
-                sub_label=f"{c} {dtype} {mf} {mode} {size} -> {osize} aa={aa}",
+                sub_label=f"{c} {dtype} {mf}{squeeze_unsqueeze_zero_label} {mode} {size} -> {osize} aa={aa}",
                 description=f"torchvision resize",
             ).blocked_autorange(min_run_time=min_run_time)
         )
@@ -161,12 +168,14 @@ def run_benchmark(c, dtype, size, osize, aa, mode, mf="channels_first", min_run_
 
 def main(
     output_filepath: str,
-    min_run_time: int = 15,
+    min_run_time: int = 10,
     tag: str = "",
     display: bool = True,
     with_torchvision: bool = False,
+    with_pillow: bool = True,
     extended_test_cases=True,
     num_threads=1,
+    squeeze_unsqueeze_zero=False
 ):
     torch.set_num_threads(num_threads)
     output_filepath = Path(output_filepath)
@@ -181,43 +190,45 @@ def main(
     print("PIL version: ", PIL.__version__)
 
     test_results = []
-    for mf in ["channels_first", "channels_last"]:
-    # for mf in ["channels_last", ]:
+    # for mf in ["channels_first", "channels_last"]:
+    for mf in ["channels_last", ]:
         for c, dtype in [
             (3, torch.uint8),
             # (3, torch.float32),
-            # (4, torch.uint8),
+            (4, torch.uint8),
         ]:
-            # for size in [256, 520, 712]:
-            # # for size in [520, 712]:
-            #     if isinstance(size, int):
-            #         size = (size, size)
+            for size in [256, 520, 712]:
+                if isinstance(size, int):
+                    size = (size, size)
 
-            #     osize_aa_mode_list = [
-            #         # (32, True, "bilinear"),
-            #         (32, False, "bilinear"),
-            #         (224, True, "bilinear"),
-            #         # (224, False, "bilinear"),
-            #     ]
+                osize_aa_mode_list = [
+                    (32, True, "bilinear"),
+                    (32, False, "bilinear"),
+                    (224, True, "bilinear"),
+                    (224, False, "bilinear"),
+                ]
 
-            #     if size == (256, 256):
-            #         osize_aa_mode_list += [
-            #             (320, True, "bilinear"),
-            #             (320, False, "bilinear"),
-            #         ]
+                if size == (256, 256):
+                    osize_aa_mode_list += [
+                        (320, True, "bilinear"),
+                        (320, False, "bilinear"),
+                    ]
 
-            #     for osize, aa, mode in osize_aa_mode_list:
-            #         if isinstance(osize, int):
-            #             osize = (osize, osize)
+                for osize, aa, mode in osize_aa_mode_list:
+                    if isinstance(osize, int):
+                        osize = (osize, osize)
 
-            #         test_results += run_benchmark(
-            #             c=c, dtype=dtype, size=size,
-            #             osize=osize, aa=aa, mode=mode, mf=mf,
-            #             min_run_time=min_run_time, tag=tag, with_torchvision=with_torchvision
-            #         )
+                    test_results += run_benchmark(
+                        c=c, dtype=dtype, size=size,
+                        osize=osize, aa=aa, mode=mode, mf=mf,
+                        min_run_time=min_run_time, tag=tag,
+                        with_torchvision=with_torchvision, with_pillow=with_pillow,
+                        squeeze_unsqueeze_zero=squeeze_unsqueeze_zero,
+                    )
 
-            # if not extended_test_cases:
-            #     continue
+
+            if not extended_test_cases:
+                continue
 
             for aa in [True, False]:
             # for aa in [False, ]:
@@ -226,7 +237,7 @@ def main(
                 size_osize_list = [
                     (64, 224),
                     (224, (270, 268)),
-                    # (256, (1024, 1024)),
+                    (256, (1024, 1024)),
                     (224, 64),
                     ((270, 268), 224),
                     (256, 224),
@@ -243,7 +254,9 @@ def main(
                     test_results += run_benchmark(
                         c=c, dtype=dtype, size=size,
                         osize=osize, aa=aa, mode=mode, mf=mf,
-                        min_run_time=min_run_time, tag=tag, with_torchvision=with_torchvision
+                        min_run_time=min_run_time, tag=tag,
+                        with_torchvision=with_torchvision, with_pillow=with_pillow,
+                        squeeze_unsqueeze_zero=squeeze_unsqueeze_zero,
                     )
 
     with open(output_filepath, "wb") as handler:
