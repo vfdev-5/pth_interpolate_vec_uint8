@@ -75,16 +75,22 @@ else:
 
 
 def test_consistency_or_record(
-    expected_pil, tensor, c, size, mf, dtype, mode, osize, aa, ac, is_ref, output_path, seed
+    expected_pil, tensor, c, size, mf, dtype, mode, osize, aa, ac, is_ref, output_path, seed,
+    exact_match=True,
+    record_path={torch.float32: "native", torch.uint8: "native"}
 ):
     # Tested op -> output
     if is_ref:
-        # # When there is no reference code, we can use float32 intermediate dtype
-        # if dtype in (torch.float32, torch.uint8):
-        if dtype in (torch.float32, ):
+        # When there is no reference code, we can use float32 intermediate dtype
+        code_path = record_path.get(dtype, "force_float")
+        if code_path == "native":
+            print("take 'native' code path", end=" ")
             output = pth_downsample(tensor, mode, osize, aa, ac)
-        else:
+        elif code_path == "force_float":
+            print("take 'force_float' code path", end=" ")
             output = pth_downsample_force_float(tensor, mode, osize, aa, ac)
+        else:
+            raise ValueError(f"Unknown value for record_path on {code_path}, record_path={record_path}")
     else:
         output = pth_downsample(tensor, mode, osize, aa, ac)
 
@@ -119,13 +125,14 @@ def test_consistency_or_record(
 
     if mode == "bilinear":
 
-        # torch.testing.assert_close(expected_ten, output)
-
-        assert mae.item() < 1.0, mae.item()
-        max_abs_err_tol = 2.0
-        m = abs_diff > 1.5
-        assert max_abs_err.item() < max_abs_err_tol + 1e-5, \
-            (max_abs_err.item(), expected_ten.float()[m], output.float()[m])
+        if exact_match:
+            torch.testing.assert_close(expected_ten, output)
+        else:
+            assert mae.item() < 1.0, mae.item()
+            max_abs_err_tol = 2.0
+            m = abs_diff > 1.5
+            assert max_abs_err.item() < max_abs_err_tol + 1e-5, \
+                (max_abs_err.item(), expected_ten.float()[m], output.float()[m])
 
 
 def main(output_path: str, is_ref: bool = False):
@@ -194,7 +201,8 @@ def main(output_path: str, is_ref: bool = False):
 
                         print(".", end=" ")
                         test_consistency_or_record(
-                            expected_pil, tensor, c, size, mf, dtype, mode, osize, aa, ac, is_ref, output_path, seed
+                            expected_pil, tensor, c, size, mf, dtype, mode, osize, aa, ac, is_ref, output_path, seed,
+                            exact_match=True
                         )
 
                         # Check specifically squeeze/unsqueeze on batch dimension
@@ -204,8 +212,12 @@ def main(output_path: str, is_ref: bool = False):
                         tensor = tensor[None, ...]
 
                         print("..", end=" ")
+                        # We override record_path as native code path for uint8 is buggy for nightly before
+                        # https://github.com/pytorch/pytorch/pull/100258
+                        record_path = {torch.float32: "native", torch.uint8: "force_float"}
                         test_consistency_or_record(
-                            expected_pil, tensor, c, size, mf, dtype, mode, osize, aa, ac, is_ref, output_path / "sq_unsq", seed
+                            expected_pil, tensor, c, size, mf, dtype, mode, osize, aa, ac, is_ref, output_path / "sq_unsq", seed,
+                            exact_match=False, record_path=record_path
                         )
 
 
