@@ -42,18 +42,18 @@ def pth_downsample_force_float(img, mode, size, aa=True, ac=False):
     return out.to(img.dtype)
 
 
-def store_expected(tensor, output, output_path, seed, mf, c, dtype, size, mode, osize, aa, ac):
+def store_expected(tensor, output, output_path, seed, mf, c, dtype, size, mode, osize, aa, ac, is_sliced):
     if not output_path.exists():
         output_path.mkdir(parents=True)
-    filepath = output_path / f"{seed}_{mf}_{c}_{dtype}_{size[0]}_{size[1]}_{mode}_{osize[0]}_{osize[1]}_{aa}_{ac}.pt"
+    filepath = output_path / f"{seed}_{mf}_{c}_{dtype}_{size[0]}_{size[1]}_{mode}_{osize[0]}_{osize[1]}_{aa}_{ac}_{is_sliced}.pt"
     torch.save(
         {"input": tensor, "output": output, "torch_version": torch.__version__},
         filepath
     )
 
 
-def get_expected(tensor, output_path, seed, mf, c, dtype, size, mode, osize, aa, ac):
-    filepath = output_path / f"{seed}_{mf}_{c}_{dtype}_{size[0]}_{size[1]}_{mode}_{osize[0]}_{osize[1]}_{aa}_{ac}.pt"
+def get_expected(tensor, output_path, seed, mf, c, dtype, size, mode, osize, aa, ac, is_sliced):
+    filepath = output_path / f"{seed}_{mf}_{c}_{dtype}_{size[0]}_{size[1]}_{mode}_{osize[0]}_{osize[1]}_{aa}_{ac}_{is_sliced}.pt"
     obj = torch.load(filepath)
     inpt = obj["input"]
     torch.testing.assert_close(inpt, tensor)
@@ -77,10 +77,24 @@ else:
 def test_consistency_or_record(
     expected_pil, tensor, c, size, mf, dtype, mode, osize, aa, ac, is_ref, output_path, seed,
     exact_match=True,
-    record_path={torch.float32: "native", torch.uint8: "native"}
+    record_path={torch.float32: "native", torch.uint8: "native"},
+    is_sliced=False,
 ):
     # Tested op -> output
     if is_ref:
+
+        if is_sliced:
+            assert tensor.ndim == 4, tensor.ndim
+            if mf == "channels_first":
+                tensor = tensor.contiguous()
+            elif mf == "channels_last":
+                tensor = tensor.contiguous(memory_format=torch.channels_last)
+            else:
+                raise RuntimeError(
+                    "Unknown mf:", mf, " | ",
+                    c, size, mf, dtype, mode, osize, aa, ac, is_ref, output_path, seed
+                )
+
         # When there is no reference code, we can use float32 intermediate dtype
         code_path = record_path.get(dtype, "force_float")
         if code_path == "native":
@@ -98,14 +112,14 @@ def test_consistency_or_record(
     if is_ref:
         if output is not None:
             print(" -> store output")
-            store_expected(tensor, output, output_path, seed, mf, c, dtype, size, mode, osize, aa, ac)
+            store_expected(tensor, output, output_path, seed, mf, c, dtype, size, mode, osize, aa, ac, is_sliced)
         else:
             print("")
         return
 
     print(" -> get expected from file")
-    expected_ten = get_expected(tensor, output_path, seed, mf, c, dtype, size, mode, osize, aa, ac)
-
+    expected_ten = get_expected(tensor, output_path, seed, mf, c, dtype, size, mode, osize, aa, ac, is_sliced)
+    print("---")
     if not ac and expected_pil is not None:
         abs_diff = torch.abs(expected_pil.float() - output.float())
         mae = torch.mean(abs_diff)
@@ -139,86 +153,96 @@ def main(output_path: str, is_ref: bool = False):
 
     output_path = Path(output_path)
 
-    for ac in [True, False]:
-        for mf in ["channels_last", "channels_first", ]:
-            for c, dtype in [
-                (3, torch.uint8),
-                (1, torch.uint8),
-                (2, torch.uint8),
-                (4, torch.uint8),
+    if is_ref and output_path.exists():
+        raise RuntimeError("Please provide non-exising folder if --is_ref flag is used")
 
-                (3, torch.float32),
-                (1, torch.float32),
-                (2, torch.float32),
-                (4, torch.float32),
-            ]:
-                for size in [256, (256, 299), (299, 321)]:
-                    if isinstance(size, int):
-                        size = [size, size]
+    for is_sliced in [True, False]:
+        for ac in [True, False]:
+            for mf in ["channels_last", "channels_first", ]:
+                for c, dtype in [
+                    (1, torch.uint8),
+                    (2, torch.uint8),
+                    (3, torch.uint8),
+                    (4, torch.uint8),
 
-                    for osize, aa, mode in [
-                        (32, True, "bilinear"),
-                        (32, False, "bilinear"),
-                        ((35, 38), True, "bilinear"),
-                        ((35, 38), False, "bilinear"),
-                        (224, True, "bilinear"),
-                        (224, False, "bilinear"),
-                        ((227, 231), True, "bilinear"),
-                        ((227, 231), False, "bilinear"),
-                        (320, True, "bilinear"),
-                        (320, False, "bilinear"),
-                        ((323, 327), True, "bilinear"),
-                        ((323, 327), False, "bilinear"),
-                    ]:
-                        if isinstance(osize, int):
-                            osize = [osize, osize + 1]
+                    (1, torch.float32),
+                    (2, torch.float32),
+                    (3, torch.float32),
+                    (4, torch.float32),
+                ]:
+                    for size in [256, (256, 299), (299, 321)]:
+                        if isinstance(size, int):
+                            size = [size, size]
 
-                        print("mf/size/dtype/c/osize/aa/mode/ac : ", mf, size, dtype, c, osize, aa, mode, ac, end=" ")
+                        if is_sliced:
+                            size = [size[0] + 50, size[1] + 50]
 
-                        seed = 115
-                        torch.manual_seed(seed)
+                        for osize, aa, mode in [
+                            (32, True, "bilinear"),
+                            (32, False, "bilinear"),
+                            ((35, 38), True, "bilinear"),
+                            ((35, 38), False, "bilinear"),
+                            (224, True, "bilinear"),
+                            (224, False, "bilinear"),
+                            ((227, 231), True, "bilinear"),
+                            ((227, 231), False, "bilinear"),
+                            (320, True, "bilinear"),
+                            (320, False, "bilinear"),
+                            ((323, 327), True, "bilinear"),
+                            ((323, 327), False, "bilinear"),
+                        ]:
+                            if isinstance(osize, int):
+                                osize = [osize, osize + 1]
 
-                        if dtype == torch.bool:
-                            tensor = torch.randint(0, 2, size=(c, size[0], size[1]), dtype=dtype)
-                        elif dtype == torch.complex64:
-                            real = torch.randint(0, 256, size=(c, size[0], size[1]), dtype=torch.float32)
-                            imag = torch.randint(0, 256, size=(c, size[0], size[1]), dtype=torch.float32)
-                            tensor = torch.complex(real, imag)
-                        elif dtype == torch.int8:
-                            tensor = torch.randint(-127, 127, size=(c, size[0], size[1]), dtype=dtype)
-                        else:
-                            tensor = torch.randint(0, 256, size=(c, size[0], size[1]), dtype=dtype)
+                            print("is_sliced/mf/size/dtype/c/osize/aa/mode/ac : ", is_sliced, mf, size, dtype, c, osize, aa, mode, ac, end=" ")
 
-                        expected_pil = None
-                        if dtype == torch.uint8 and c == 3 and aa:
-                            np_array = tensor.clone().permute(1, 2, 0).contiguous().numpy()
-                            pil_img = PIL.Image.fromarray(np_array)
-                            pil_img = pil_img.resize(osize[::-1], resample=resampling_map[mode])
-                            expected_pil = torch.from_numpy(np.asarray(pil_img)).clone().permute(2, 0, 1).contiguous()
+                            seed = 115
+                            torch.manual_seed(seed)
 
-                        memory_format = torch.channels_last if mf == "channels_last" else torch.contiguous_format
-                        tensor = tensor[None, ...].contiguous(memory_format=memory_format)
+                            if dtype == torch.bool:
+                                tensor = torch.randint(0, 2, size=(c, size[0], size[1]), dtype=dtype)
+                            elif dtype == torch.complex64:
+                                real = torch.randint(0, 256, size=(c, size[0], size[1]), dtype=torch.float32)
+                                imag = torch.randint(0, 256, size=(c, size[0], size[1]), dtype=torch.float32)
+                                tensor = torch.complex(real, imag)
+                            elif dtype == torch.int8:
+                                tensor = torch.randint(-127, 127, size=(c, size[0], size[1]), dtype=dtype)
+                            else:
+                                tensor = torch.randint(0, 256, size=(c, size[0], size[1]), dtype=dtype)
 
-                        print(".", end=" ")
-                        test_consistency_or_record(
-                            expected_pil, tensor, c, size, mf, dtype, mode, osize, aa, ac, is_ref, output_path, seed,
-                            exact_match=True
-                        )
+                            if is_sliced:
+                                tensor = tensor[:, 25:-25, 25:-25]
 
-                        # Check specifically squeeze/unsqueeze on batch dimension
-                        # There is an inconsistency with interpolate on output mem format
-                        # if input is unsqueezed 3D CL tensor, output is 4D CF tensor
-                        tensor = tensor[0, ...]
-                        tensor = tensor[None, ...]
+                            expected_pil = None
+                            if dtype == torch.uint8 and c == 3 and aa:
+                                np_array = tensor.clone().permute(1, 2, 0).contiguous().numpy()
+                                pil_img = PIL.Image.fromarray(np_array)
+                                pil_img = pil_img.resize(osize[::-1], resample=resampling_map[mode])
+                                expected_pil = torch.from_numpy(np.asarray(pil_img)).clone().permute(2, 0, 1).contiguous()
 
-                        print("..", end=" ")
-                        # We override record_path as native code path for uint8 is buggy for nightly before
-                        # https://github.com/pytorch/pytorch/pull/100258
-                        record_path = {torch.float32: "native", torch.uint8: "force_float"}
-                        test_consistency_or_record(
-                            expected_pil, tensor, c, size, mf, dtype, mode, osize, aa, ac, is_ref, output_path / "sq_unsq", seed,
-                            exact_match=False, record_path=record_path
-                        )
+                            memory_format = torch.channels_last if mf == "channels_last" else torch.contiguous_format
+                            tensor = tensor[None, ...].contiguous(memory_format=memory_format)
+
+                            print(".", end=" ")
+                            test_consistency_or_record(
+                                expected_pil, tensor, c, size, mf, dtype, mode, osize, aa, ac, is_ref, output_path, seed,
+                                exact_match=True, is_sliced=is_sliced
+                            )
+
+                            # Check specifically squeeze/unsqueeze on batch dimension
+                            # There is an inconsistency with interpolate on output mem format
+                            # if input is unsqueezed 3D CL tensor, output is 4D CF tensor
+                            tensor = tensor[0, ...]
+                            tensor = tensor[None, ...]
+
+                            print("..", end=" ")
+                            # We override record_path as native code path for uint8 is buggy for nightly before
+                            # https://github.com/pytorch/pytorch/pull/100258
+                            record_path = {torch.float32: "native", torch.uint8: "force_float"}
+                            test_consistency_or_record(
+                                expected_pil, tensor, c, size, mf, dtype, mode, osize, aa, ac, is_ref, output_path / "sq_unsq", seed,
+                                exact_match=False, record_path=record_path
+                            )
 
 
 if __name__ == "__main__":
