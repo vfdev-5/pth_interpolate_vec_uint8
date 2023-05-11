@@ -41,12 +41,17 @@ resampling_map = {"bilinear": PIL.Image.BILINEAR, "nearest": PIL.Image.NEAREST, 
 
 def main():
 
+    # b = 1
+    b = 8
+
     # h, w, c = 256, 256, 3
     # h, w, c = 8, 28, 3
     h, w, c = 32, 32, 3
-    h += 10; w += 10
+    # h += 10; w += 10
+    h *= 3; w *= 3
+
     s = w * c
-    rgb = list(range(h * s))
+    rgb = list(range(b * h * s))
 
     # oh, ow = 224, 224
     oh, ow = 12, 12
@@ -60,10 +65,12 @@ def main():
     # for ow in [7, ]:
     for _ in [1, ]:
 
-        t_input = torch.tensor(rgb, dtype=torch.uint8).reshape(1, h, w, 3).permute(0, 3, 1, 2).contiguous(memory_format=torch.channels_last)
-        # t_input = torch.tensor(rgb, dtype=torch.uint8).reshape(1, h, w, 3).permute(0, 3, 1, 2).contiguous()
+        t_input = torch.tensor(rgb, dtype=torch.uint8).reshape(b, h, w, 3).permute(0, 3, 1, 2).contiguous(memory_format=torch.channels_last)
+        # t_input = torch.tensor(rgb, dtype=torch.uint8).reshape(b, h, w, 3).permute(0, 3, 1, 2).contiguous()
 
-        t_input = t_input[:, :, 5:-5, 5:-5]
+        # t_input = t_input[:, :, 5:-5, 5:-5]
+        t_input = t_input[:, :, ::3, ::3]
+
         # t_input2 = t_input.contiguous()
         t_input2 = t_input.contiguous(memory_format=torch.channels_last)
         print(
@@ -105,7 +112,7 @@ def main():
         # print("Compare:")
         print(output[0, :2, :10].ravel().tolist())
         print(output2[0, :2, :10].ravel().tolist())
-        torch.testing.assert_close(output, output2)
+        torch.testing.assert_close(t_output, t_output2)
         print("")
 
 

@@ -42,18 +42,20 @@ def pth_downsample_force_float(img, mode, size, aa=True, ac=False):
     return out.to(img.dtype)
 
 
-def store_expected(tensor, output, output_path, seed, mf, c, dtype, size, mode, osize, aa, ac, is_sliced):
+def store_expected(tensor, output, output_path, seed, mf, c, dtype, size, mode, osize, aa, ac, non_contig):
     if not output_path.exists():
         output_path.mkdir(parents=True)
-    filepath = output_path / f"{seed}_{mf}_{c}_{dtype}_{size[0]}_{size[1]}_{mode}_{osize[0]}_{osize[1]}_{aa}_{ac}_{is_sliced}.pt"
+    bs = len(tensor)
+    filepath = output_path / f"{seed}_{bs}_{mf}_{c}_{dtype}_{size[0]}_{size[1]}_{mode}_{osize[0]}_{osize[1]}_{aa}_{ac}_{non_contig}.pt"
     torch.save(
         {"input": tensor, "output": output, "torch_version": torch.__version__},
         filepath
     )
 
 
-def get_expected(tensor, output_path, seed, mf, c, dtype, size, mode, osize, aa, ac, is_sliced):
-    filepath = output_path / f"{seed}_{mf}_{c}_{dtype}_{size[0]}_{size[1]}_{mode}_{osize[0]}_{osize[1]}_{aa}_{ac}_{is_sliced}.pt"
+def get_expected(tensor, output_path, seed, mf, c, dtype, size, mode, osize, aa, ac, non_contig):
+    bs = len(tensor)
+    filepath = output_path / f"{seed}_{bs}_{mf}_{c}_{dtype}_{size[0]}_{size[1]}_{mode}_{osize[0]}_{osize[1]}_{aa}_{ac}_{non_contig}.pt"
     obj = torch.load(filepath)
     inpt = obj["input"]
     torch.testing.assert_close(inpt, tensor)
@@ -78,12 +80,12 @@ def test_consistency_or_record(
     expected_pil, tensor, c, size, mf, dtype, mode, osize, aa, ac, is_ref, output_path, seed,
     exact_match=True,
     record_path={torch.float32: "native", torch.uint8: "native"},
-    is_sliced=False,
+    non_contig=False,
 ):
     # Tested op -> output
     if is_ref:
 
-        if is_sliced:
+        if non_contig is not False:
             assert tensor.ndim == 4, tensor.ndim
             if mf == "channels_first":
                 tensor = tensor.contiguous()
@@ -112,13 +114,13 @@ def test_consistency_or_record(
     if is_ref:
         if output is not None:
             print(" -> store output")
-            store_expected(tensor, output, output_path, seed, mf, c, dtype, size, mode, osize, aa, ac, is_sliced)
+            store_expected(tensor, output, output_path, seed, mf, c, dtype, size, mode, osize, aa, ac, non_contig)
         else:
             print("")
         return
 
     print(" -> get expected from file")
-    expected_ten = get_expected(tensor, output_path, seed, mf, c, dtype, size, mode, osize, aa, ac, is_sliced)
+    expected_ten = get_expected(tensor, output_path, seed, mf, c, dtype, size, mode, osize, aa, ac, non_contig)
     print("---")
     if not ac and expected_pil is not None:
         abs_diff = torch.abs(expected_pil.float() - output.float())
@@ -156,93 +158,112 @@ def main(output_path: str, is_ref: bool = False):
     if is_ref and output_path.exists():
         raise RuntimeError("Please provide non-exising folder if --is_ref flag is used")
 
-    for is_sliced in [True, False]:
-        for ac in [True, False]:
-            for mf in ["channels_last", "channels_first", ]:
-                for c, dtype in [
-                    (1, torch.uint8),
-                    (2, torch.uint8),
-                    (3, torch.uint8),
-                    (4, torch.uint8),
 
-                    (1, torch.float32),
-                    (2, torch.float32),
-                    (3, torch.float32),
-                    (4, torch.float32),
-                ]:
-                    for size in [256, (256, 299), (299, 321)]:
-                        if isinstance(size, int):
-                            size = [size, size]
+    for batch_size in [1, 5]:
+        for non_contig in [False, "sliced", "restrided"]:
+            for ac in [True, False]:
+                for mf in ["channels_last", "channels_first", ]:
+                    for c, dtype in [
+                        (1, torch.uint8),
+                        (2, torch.uint8),
+                        (3, torch.uint8),
+                        (4, torch.uint8),
 
-                        if is_sliced:
-                            size = [size[0] + 50, size[1] + 50]
+                        (1, torch.float32),
+                        (2, torch.float32),
+                        (3, torch.float32),
+                        (4, torch.float32),
+                    ]:
+                        for size in [256, (256, 299), (299, 321)]:
+                            if isinstance(size, int):
+                                size = [size, size]
 
-                        for osize, aa, mode in [
-                            (32, True, "bilinear"),
-                            (32, False, "bilinear"),
-                            ((35, 38), True, "bilinear"),
-                            ((35, 38), False, "bilinear"),
-                            (224, True, "bilinear"),
-                            (224, False, "bilinear"),
-                            ((227, 231), True, "bilinear"),
-                            ((227, 231), False, "bilinear"),
-                            (320, True, "bilinear"),
-                            (320, False, "bilinear"),
-                            ((323, 327), True, "bilinear"),
-                            ((323, 327), False, "bilinear"),
-                        ]:
-                            if isinstance(osize, int):
-                                osize = [osize, osize + 1]
+                            if non_contig is not False:
+                                if non_contig == "sliced":
+                                    size = [size[0] + 50, size[1] + 50]
+                                elif non_contig == "restrided":
+                                    size = [size[0] * 2, size[1] * 2]
+                                else:
+                                    raise ValueError("Unknown non_contig value '{non_contig}'")
 
-                            print("is_sliced/mf/size/dtype/c/osize/aa/mode/ac : ", is_sliced, mf, size, dtype, c, osize, aa, mode, ac, end=" ")
+                            for osize, aa, mode in [
+                                (32, True, "bilinear"),
+                                (32, False, "bilinear"),
+                                ((35, 38), True, "bilinear"),
+                                ((35, 38), False, "bilinear"),
+                                (224, True, "bilinear"),
+                                (224, False, "bilinear"),
+                                ((227, 231), True, "bilinear"),
+                                ((227, 231), False, "bilinear"),
+                                (320, True, "bilinear"),
+                                (320, False, "bilinear"),
+                                ((323, 327), True, "bilinear"),
+                                ((323, 327), False, "bilinear"),
+                            ]:
+                                if isinstance(osize, int):
+                                    osize = [osize, osize + 1]
 
-                            seed = 115
-                            torch.manual_seed(seed)
+                                print("batch_size/non_contig/mf/size/dtype/c/osize/aa/mode/ac : ", batch_size, non_contig, mf, size, dtype, c, osize, aa, mode, ac, end=" ")
 
-                            if dtype == torch.bool:
-                                tensor = torch.randint(0, 2, size=(c, size[0], size[1]), dtype=dtype)
-                            elif dtype == torch.complex64:
-                                real = torch.randint(0, 256, size=(c, size[0], size[1]), dtype=torch.float32)
-                                imag = torch.randint(0, 256, size=(c, size[0], size[1]), dtype=torch.float32)
-                                tensor = torch.complex(real, imag)
-                            elif dtype == torch.int8:
-                                tensor = torch.randint(-127, 127, size=(c, size[0], size[1]), dtype=dtype)
-                            else:
-                                tensor = torch.randint(0, 256, size=(c, size[0], size[1]), dtype=dtype)
+                                seed = 115
+                                torch.manual_seed(seed)
 
-                            if is_sliced:
-                                tensor = tensor[:, 25:-25, 25:-25]
+                                if dtype == torch.bool:
+                                    tensor = torch.randint(0, 2, size=(c, size[0], size[1]), dtype=dtype)
+                                elif dtype == torch.complex64:
+                                    real = torch.randint(0, 256, size=(c, size[0], size[1]), dtype=torch.float32)
+                                    imag = torch.randint(0, 256, size=(c, size[0], size[1]), dtype=torch.float32)
+                                    tensor = torch.complex(real, imag)
+                                elif dtype == torch.int8:
+                                    tensor = torch.randint(-127, 127, size=(c, size[0], size[1]), dtype=dtype)
+                                else:
+                                    tensor = torch.randint(0, 256, size=(c, size[0], size[1]), dtype=dtype)
 
-                            expected_pil = None
-                            if dtype == torch.uint8 and c == 3 and aa:
-                                np_array = tensor.clone().permute(1, 2, 0).contiguous().numpy()
-                                pil_img = PIL.Image.fromarray(np_array)
-                                pil_img = pil_img.resize(osize[::-1], resample=resampling_map[mode])
-                                expected_pil = torch.from_numpy(np.asarray(pil_img)).clone().permute(2, 0, 1).contiguous()
+                                if non_contig is not False:
+                                    if non_contig == "sliced":
+                                        tensor = tensor[:, 25:-25, 25:-25]
+                                    elif non_contig == "restrided":
+                                        tensor = tensor[:, ::2, ::2]
+                                    else:
+                                        raise ValueError("Unknown non_contig value '{non_contig}'")
 
-                            memory_format = torch.channels_last if mf == "channels_last" else torch.contiguous_format
-                            tensor = tensor[None, ...].contiguous(memory_format=memory_format)
+                                expected_pil = None
+                                if dtype == torch.uint8 and c == 3 and aa:
+                                    np_array = tensor.clone().permute(1, 2, 0).contiguous().numpy()
+                                    pil_img = PIL.Image.fromarray(np_array)
+                                    pil_img = pil_img.resize(osize[::-1], resample=resampling_map[mode])
+                                    expected_pil = torch.from_numpy(np.asarray(pil_img)).clone().permute(2, 0, 1).contiguous()
 
-                            print(".", end=" ")
-                            test_consistency_or_record(
-                                expected_pil, tensor, c, size, mf, dtype, mode, osize, aa, ac, is_ref, output_path, seed,
-                                exact_match=True, is_sliced=is_sliced
-                            )
+                                memory_format = torch.channels_last if mf == "channels_last" else torch.contiguous_format
 
-                            # Check specifically squeeze/unsqueeze on batch dimension
-                            # There is an inconsistency with interpolate on output mem format
-                            # if input is unsqueezed 3D CL tensor, output is 4D CF tensor
-                            tensor = tensor[0, ...]
-                            tensor = tensor[None, ...]
+                                if batch_size == 1:
+                                    tensor = tensor[None, ...].contiguous(memory_format=memory_format)
+                                else:
+                                    new_shape = (batch_size, ) + tensor.shape
+                                    tensor = tensor[None, ...].expand(new_shape).contiguous(memory_format=memory_format)
 
-                            print("..", end=" ")
-                            # We override record_path as native code path for uint8 is buggy for nightly before
-                            # https://github.com/pytorch/pytorch/pull/100258
-                            record_path = {torch.float32: "native", torch.uint8: "force_float"}
-                            test_consistency_or_record(
-                                expected_pil, tensor, c, size, mf, dtype, mode, osize, aa, ac, is_ref, output_path / "sq_unsq", seed,
-                                exact_match=False, record_path=record_path
-                            )
+                                print(".", end=" ")
+                                test_consistency_or_record(
+                                    expected_pil, tensor, c, size, mf, dtype, mode, osize, aa, ac, is_ref, output_path, seed,
+                                    exact_match=True, non_contig=non_contig
+                                )
+
+                                if batch_size == 1:
+                                    # Check specifically squeeze/unsqueeze on batch dimension
+                                    # There is an inconsistency with interpolate on output mem format
+                                    # if input is unsqueezed 3D CL tensor, output is 4D CF tensor
+                                    tensor = tensor[0, ...]
+                                    tensor = tensor[None, ...]
+
+                                    print("..", end=" ")
+                                    # We override record_path as native code path for uint8 is buggy for nightly before
+                                    # https://github.com/pytorch/pytorch/pull/100258
+                                    record_path = {torch.float32: "native", torch.uint8: "force_float"}
+                                    test_consistency_or_record(
+                                        expected_pil, tensor, c, size, mf, dtype, mode, osize, aa, ac, is_ref, output_path / "sq_unsq", seed,
+                                        exact_match=False, record_path=record_path,
+                                        non_contig=non_contig
+                                    )
 
 
 if __name__ == "__main__":

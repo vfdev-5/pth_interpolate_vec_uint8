@@ -173,7 +173,7 @@ def main(
     display: bool = True,
     with_torchvision: bool = False,
     with_pillow: bool = True,
-    extended_test_cases=True,
+    extended_test_cases=False,
     num_threads=1,
     squeeze_unsqueeze_zero=False
 ):
@@ -190,8 +190,8 @@ def main(
     print("PIL version: ", PIL.__version__)
 
     test_results = []
-    # for mf in ["channels_first", "channels_last"]:
-    for mf in ["channels_last", ]:
+    for mf in ["channels_first", "channels_last"]:
+    # for mf in ["channels_last", ]:
         for c, dtype in [
             (3, torch.uint8),
             # (3, torch.float32),
