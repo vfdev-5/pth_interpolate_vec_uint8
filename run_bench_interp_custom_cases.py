@@ -94,14 +94,15 @@ def run_benchmark(c, dtype, size, osize, aa, mode, mf="channels_first", min_run_
     memory_format = torch.channels_last if mf == "channels_last" else torch.contiguous_format
     tensor = tensor[None, ...].contiguous(memory_format=memory_format)
 
-
     squeeze_unsqueeze_zero_label = ""
     if squeeze_unsqueeze_zero:
         squeeze_unsqueeze_zero_label = "(squeeze/unsqueeze)"
         tensor = tensor[0, ...]
         tensor = tensor[None, ...]
 
-    output = pth_downsample_i8(tensor, mode=mode, size=osize, aa=aa)
+    # warm-up
+    for _ in range(10):
+        output = pth_downsample_i8(tensor, mode=mode, size=osize, aa=aa)
     output = output[0, ...]
 
     if expected_pil is not None:
@@ -191,6 +192,7 @@ def main(
 
     test_results = []
     for mf in ["channels_first", "channels_last"]:
+    # for mf in ["channels_first", ]:
     # for mf in ["channels_last", ]:
         for c, dtype in [
             (3, torch.uint8),
@@ -198,6 +200,7 @@ def main(
             (4, torch.uint8),
         ]:
             for size in [256, 520, 712]:
+            # for size in [256, ]:
                 if isinstance(size, int):
                     size = (size, size)
 

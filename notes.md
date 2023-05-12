@@ -7,7 +7,7 @@ pip uninstall -y pillow && CC="cc -mavx2" pip install --no-cache-dir --force-rei
 
 ## TODO:
 
-- [x] Understand better the problem with `xmax - 1` boundary
+### [x] Understand better the problem with `xmax - 1` boundary
 ```
     for (; x < xmax - 1; x += 2) {
       auto source = _mm_loadl_epi64((__m128i*) (lineIn + stride * (x + xmin)));
@@ -1071,6 +1071,107 @@ Times are in milliseconds (ms).
 Times are in seconds (s).
 ```
 
+### Fix non-input issue (https://github.com/pytorch/pytorch/pull/101136)
+
+
+Issue is with `unpack_rgb`
+
+#### Try manual loop + if/else conditions on strides
+
+- PR
+```
+PIL version:  9.0.0.post1
+[--------------------------------------------------- Resize --------------------------------------------------]
+                                                                               |  torch (2.1.0a0+git05154b0) PR
+1 threads: ----------------------------------------------------------------------------------------------------
+
+# BEFORE SPECIAL CODE PATH FOR CONTIG INPUT
+      4 torch.uint8 channels_first bilinear (520, 520) -> (32, 32) aa=False    |        164.790 (+-4.218)
+      4 torch.uint8 channels_first bilinear (520, 520) -> (224, 224) aa=False  |        407.037 (+-2.594)
+      4 torch.uint8 channels_first bilinear (712, 712) -> (32, 32) aa=False    |        325.912 (+-21.041)
+      4 torch.uint8 channels_first bilinear (712, 712) -> (224, 224) aa=False  |        574.791 (+-14.913)
+
+      4 torch.uint8 channels_first bilinear (520, 520) -> (32, 32) aa=False    |        158.729 (+-1.664)
+      4 torch.uint8 channels_first bilinear (520, 520) -> (224, 224) aa=False  |        408.789 (+-2.568)
+      4 torch.uint8 channels_first bilinear (712, 712) -> (32, 32) aa=False    |        261.630 (+-3.210)
+      4 torch.uint8 channels_first bilinear (712, 712) -> (224, 224) aa=False  |        553.277 (+-4.786)
+
+# AFTER SPECIAL CODE PATH FOR CONTIG INPUT
+
+      4 torch.uint8 channels_first bilinear (520, 520) -> (32, 32) aa=False    |        127.200 (+-4.804)
+      4 torch.uint8 channels_first bilinear (520, 520) -> (224, 224) aa=False  |        395.518 (+-10.430)
+      4 torch.uint8 channels_first bilinear (712, 712) -> (32, 32) aa=False    |        216.252 (+-14.652)
+      4 torch.uint8 channels_first bilinear (712, 712) -> (224, 224) aa=False  |        492.717 (+-25.908)
+
+      4 torch.uint8 channels_first bilinear (520, 520) -> (32, 32) aa=False    |        125.340 (+-3.829)
+      4 torch.uint8 channels_first bilinear (520, 520) -> (224, 224) aa=False  |        387.180 (+-8.824)
+      4 torch.uint8 channels_first bilinear (712, 712) -> (32, 32) aa=False    |        202.903 (+-11.689)
+      4 torch.uint8 channels_first bilinear (712, 712) -> (224, 224) aa=False  |        485.877 (+-28.584)
+
+      4 torch.uint8 channels_first bilinear (520, 520) -> (32, 32) aa=False    |        122.195 (+-1.088)
+      4 torch.uint8 channels_first bilinear (520, 520) -> (224, 224) aa=False  |        369.160 (+-4.347)
+      4 torch.uint8 channels_first bilinear (712, 712) -> (32, 32) aa=False    |        197.400 (+-1.323)
+      4 torch.uint8 channels_first bilinear (712, 712) -> (224, 224) aa=False  |        486.007 (+-3.337)
+
+Times are in microseconds (us).
+```
+
+- Nightly
+```
+PIL version:  9.0.0.post1
+[----------------------------------------------------- Resize -----------------------------------------------------]
+                                                                               |  torch (2.1.0a0+git5a933d0) nightly
+1 threads: ---------------------------------------------------------------------------------------------------------
+      4 torch.uint8 channels_first bilinear (520, 520) -> (32, 32) aa=False    |          125.248 (+-3.120)
+      4 torch.uint8 channels_first bilinear (520, 520) -> (224, 224) aa=False  |          377.254 (+-10.454)
+      4 torch.uint8 channels_first bilinear (712, 712) -> (32, 32) aa=False    |          211.985 (+-11.004)
+      4 torch.uint8 channels_first bilinear (712, 712) -> (224, 224) aa=False  |          498.976 (+-12.841)
+
+      4 torch.uint8 channels_first bilinear (520, 520) -> (32, 32) aa=False    |          125.777 (+-4.621)
+      4 torch.uint8 channels_first bilinear (520, 520) -> (224, 224) aa=False  |          376.776 (+-5.408)
+      4 torch.uint8 channels_first bilinear (712, 712) -> (32, 32) aa=False    |          200.442 (+-3.201)
+      4 torch.uint8 channels_first bilinear (712, 712) -> (224, 224) aa=False  |          498.112 (+-5.977)
+
+Times are in microseconds (us).
+```
+
+#### Using `x.copy_(y)`
+
+- PR
+```
+PIL version:  9.0.0.post1
+[--------------------------------------------------------------- Resize ---------------------------------------------------------------]
+                                                                               |  Pillow (9.0.0.post1)  |  torch (2.1.0a0+git05154b0) PR
+1 threads: -----------------------------------------------------------------------------------------------------------------------------
+      3 torch.uint8 channels_first bilinear (256, 256) -> (224, 224) aa=True   |   128.029 (+-1.632)    |        385.745 (+-2.075)
+      3 torch.uint8 channels_first bilinear (256, 256) -> (224, 224) aa=False  |                        |        374.206 (+-2.088)
+      3 torch.uint8 channels_first bilinear (256, 256) -> (320, 320) aa=True   |   176.372 (+-1.302)    |        523.880 (+-2.445)
+      3 torch.uint8 channels_first bilinear (256, 256) -> (320, 320) aa=False  |                        |        520.479 (+-5.112)
+      4 torch.uint8 channels_first bilinear (256, 256) -> (224, 224) aa=True   |                        |        422.215 (+-4.919)
+      4 torch.uint8 channels_first bilinear (256, 256) -> (224, 224) aa=False  |                        |        408.141 (+-2.433)
+      4 torch.uint8 channels_first bilinear (256, 256) -> (320, 320) aa=True   |                        |        583.431 (+-6.280)
+      4 torch.uint8 channels_first bilinear (256, 256) -> (320, 320) aa=False  |                        |        581.710 (+-3.821)
+
+Times are in microseconds (us).
+```
+
+- Nightly
+```
+PIL version:  9.0.0.post1
+[------------------------------------------------------------------ Resize -----------------------------------------------------------------]
+                                                                               |  Pillow (9.0.0.post1)  |  torch (2.1.0a0+git5a933d0) Nightly
+1 threads: ----------------------------------------------------------------------------------------------------------------------------------
+      3 torch.uint8 channels_first bilinear (256, 256) -> (224, 224) aa=True   |   129.729 (+-4.168)    |          334.909 (+-6.102)
+      3 torch.uint8 channels_first bilinear (256, 256) -> (224, 224) aa=False  |                        |          323.560 (+-5.276)
+      3 torch.uint8 channels_first bilinear (256, 256) -> (320, 320) aa=True   |   180.990 (+-2.317)    |          506.661 (+-7.208)
+      3 torch.uint8 channels_first bilinear (256, 256) -> (320, 320) aa=False  |                        |          504.987 (+-15.051)
+      4 torch.uint8 channels_first bilinear (256, 256) -> (224, 224) aa=True   |                        |          278.988 (+-7.153)
+      4 torch.uint8 channels_first bilinear (256, 256) -> (224, 224) aa=False  |                        |          272.458 (+-4.676)
+      4 torch.uint8 channels_first bilinear (256, 256) -> (320, 320) aa=True   |                        |          431.035 (+-14.131)
+      4 torch.uint8 channels_first bilinear (256, 256) -> (320, 320) aa=False  |                        |          464.921 (+-5.323)
+
+Times are in microseconds (us).
+```
 
 ## Run benchmarks: nightly vs PR
 

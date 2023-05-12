@@ -186,20 +186,26 @@ def main(output_path: str, is_ref: bool = False):
                                 else:
                                     raise ValueError("Unknown non_contig value '{non_contig}'")
 
-                            for osize, aa, mode in [
+                            minimal_osize_aa_mode_set = [
                                 (32, True, "bilinear"),
                                 (32, False, "bilinear"),
                                 ((35, 38), True, "bilinear"),
                                 ((35, 38), False, "bilinear"),
-                                (224, True, "bilinear"),
-                                (224, False, "bilinear"),
-                                ((227, 231), True, "bilinear"),
-                                ((227, 231), False, "bilinear"),
-                                (320, True, "bilinear"),
-                                (320, False, "bilinear"),
                                 ((323, 327), True, "bilinear"),
                                 ((323, 327), False, "bilinear"),
-                            ]:
+                            ]
+
+                            if not (batch_size > 1 or non_contig is not False):
+                                minimal_osize_aa_mode_set += [
+                                    (224, True, "bilinear"),
+                                    (224, False, "bilinear"),
+                                    ((227, 231), True, "bilinear"),
+                                    ((227, 231), False, "bilinear"),
+                                    (320, True, "bilinear"),
+                                    (320, False, "bilinear"),
+                                ]
+
+                            for osize, aa, mode in minimal_osize_aa_mode_set:
                                 if isinstance(osize, int):
                                     osize = [osize, osize + 1]
 

@@ -42,7 +42,7 @@ resampling_map = {"bilinear": PIL.Image.BILINEAR, "nearest": PIL.Image.NEAREST, 
 def main():
 
     # b = 1
-    b = 8
+    b = 1
 
     # h, w, c = 256, 256, 3
     # h, w, c = 8, 28, 3
@@ -65,14 +65,14 @@ def main():
     # for ow in [7, ]:
     for _ in [1, ]:
 
-        t_input = torch.tensor(rgb, dtype=torch.uint8).reshape(b, h, w, 3).permute(0, 3, 1, 2).contiguous(memory_format=torch.channels_last)
-        # t_input = torch.tensor(rgb, dtype=torch.uint8).reshape(b, h, w, 3).permute(0, 3, 1, 2).contiguous()
+        # t_input = torch.tensor(rgb, dtype=torch.uint8).reshape(b, h, w, 3).permute(0, 3, 1, 2).contiguous(memory_format=torch.channels_last)
+        t_input = torch.tensor(rgb, dtype=torch.uint8).reshape(b, h, w, 3).permute(0, 3, 1, 2).contiguous()
 
-        # t_input = t_input[:, :, 5:-5, 5:-5]
-        t_input = t_input[:, :, ::3, ::3]
+        t_input = t_input[:, :, 5:-5, 5:-5]
+        # t_input = t_input[:, :, ::3, ::3]
 
-        # t_input2 = t_input.contiguous()
-        t_input2 = t_input.contiguous(memory_format=torch.channels_last)
+        t_input2 = t_input.contiguous()
+        # t_input2 = t_input.contiguous(memory_format=torch.channels_last)
         print(
             t_input.shape,
             t_input.stride(),

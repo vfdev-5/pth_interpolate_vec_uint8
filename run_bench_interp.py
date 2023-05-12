@@ -94,7 +94,9 @@ def run_benchmark(c, dtype, size, osize, aa, mode, mf="channels_first", min_run_
     memory_format = torch.channels_last if mf == "channels_last" else torch.contiguous_format
     tensor = tensor[None, ...].contiguous(memory_format=memory_format)
 
-    output = pth_downsample_i8(tensor, mode=mode, size=osize, aa=aa)
+    # warm-up
+    for _ in range(10):
+        output = pth_downsample_i8(tensor, mode=mode, size=osize, aa=aa)
     output = output[0, ...]
 
     if expected_pil is not None:
