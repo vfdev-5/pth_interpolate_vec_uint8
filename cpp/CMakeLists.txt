@@ -15,6 +15,9 @@ find_package(Torch REQUIRED)
 # target_link_libraries(check_ti_channels_last PUBLIC ${TORCH_LIBRARIES})
 # set_property(TARGET check_ti_channels_last PROPERTY CXX_STANDARD 14)
 
+add_executable(check_ti_channels_first check_ti_channels_first.cpp)
+target_link_libraries(check_ti_channels_first PUBLIC ${TORCH_LIBRARIES})
+set_property(TARGET check_ti_channels_first PROPERTY CXX_STANDARD 14)
 
 # add_executable(profile_vect_interp profile_vect_interp.cpp)
 # target_link_libraries(profile_vect_interp PUBLIC ${TORCH_LIBRARIES})
@@ -24,6 +27,10 @@ find_package(Torch REQUIRED)
 # target_link_libraries(check_mem_format_3d_input PUBLIC ${TORCH_LIBRARIES})
 # set_property(TARGET check_mem_format_3d_input PROPERTY CXX_STANDARD 17)
 
-add_executable(unpack_rgb_with_copy unpack_rgb_with_copy.cpp)
-target_link_libraries(unpack_rgb_with_copy PUBLIC ${TORCH_LIBRARIES})
-set_property(TARGET unpack_rgb_with_copy PROPERTY CXX_STANDARD 17)
+# add_executable(unpack_rgb_with_copy unpack_rgb_with_copy.cpp)
+# target_link_libraries(unpack_rgb_with_copy PUBLIC ${TORCH_LIBRARIES})
+# set_property(TARGET unpack_rgb_with_copy PROPERTY CXX_STANDARD 17)
+
+# add_executable(check_cpp_api_bicubic_issue check_cpp_api_bicubic_issue.cpp)
+# target_link_libraries(check_cpp_api_bicubic_issue PUBLIC ${TORCH_LIBRARIES})
+# set_property(TARGET check_cpp_api_bicubic_issue PROPERTY CXX_STANDARD 17)

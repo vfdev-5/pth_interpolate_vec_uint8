@@ -165,14 +165,16 @@ def main(output_path: str, is_ref: bool = False):
                 for mf in ["channels_last", "channels_first", ]:
                     for c, dtype in [
                         (1, torch.uint8),
-                        (2, torch.uint8),
+                        # (2, torch.uint8),
                         (3, torch.uint8),
                         (4, torch.uint8),
+                        (5, torch.uint8),
 
                         (1, torch.float32),
-                        (2, torch.float32),
+                        # (2, torch.float32),
                         (3, torch.float32),
                         (4, torch.float32),
+                        (5, torch.float32),
                     ]:
                         for size in [256, (256, 299), (299, 321)]:
                             if isinstance(size, int):

@@ -51,10 +51,11 @@ def main():
         tensor_float32 = tensor_float32.contiguous(memory_format=torch.channels_last)
 
     print("Memory format:", mf)
+    print("Antialias:", antialias)
     output_uint8 = torch.nn.functional.interpolate(
         tensor_uint8, mode=resample, size=out_size, align_corners=align_corners, antialias=antialias
     )
-    print("output_uint8: \n", output_uint8[0, 0, :7, :7])
+    print("output_uint8: \n", output_uint8[0, 0, :, :])
 
     output_float32 = torch.nn.functional.interpolate(
         tensor_float32, mode=resample, size=out_size, align_corners=align_corners, antialias=antialias
@@ -62,7 +63,7 @@ def main():
     if resample == "bicubic":
         output_float32 = output_float32.clamp(min=0, max=255).round()
 
-    print("output_float32: \n", output_float32[0, 0, :8, :8])
+    print("output_float32: \n", output_float32[0, 0, :, :])
 
     abs_diff = torch.abs(output_float32 - output_uint8.float())
     mae = torch.mean(abs_diff)
@@ -70,15 +71,15 @@ def main():
     print("PyTorch uint8 vs PyTorch float: Mean Absolute Error:", mae.item())
     print("PyTorch uint8 vs PyTorch float: Max Absolute Error:", max_abs_err.item())
 
-    if has_cv2:
+    if has_cv2 and not antialias:
         a_uint8 = tensor_uint8[0, ...].permute(1, 2, 0).contiguous().numpy()
         a_float32 = a_uint8.astype("float32")
 
         output_uint8_cv2 = cv2.resize(a_uint8, dsize=out_size, interpolation=cv2.INTER_CUBIC)
-        print("output_uint8_cv2: \n", output_uint8_cv2[:7, :7])
+        print("output_uint8_cv2: \n", output_uint8_cv2[:8, :8])
 
         output_float32_cv2 = cv2.resize(a_float32, dsize=out_size, interpolation=cv2.INTER_CUBIC)
-        print("output_float32_cv2: \n", output_float32_cv2[:7, :7])
+        print("output_float32_cv2: \n", output_float32_cv2[:8, :8])
         if resample == "bicubic":
             output_float32_cv2 = np.clip(output_float32_cv2, 0, 255).round()
 

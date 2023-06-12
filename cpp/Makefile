@@ -17,6 +17,8 @@ check_resize_avx_rgb_CF: check_resize_avx_rgb_CF.cpp
 play_avx: play_avx.cpp
 	$(CC) play_avx.cpp -o play_avx
 
+check_bicubic_weights_computation: check_bicubic_weights_computation.cpp
+	$(CC) check_bicubic_weights_computation.cpp -o check_bicubic_weights_computation
 
 check_mem_boundaries_with_asan: check_mem_boundaries_with_asan.cpp
 	clang++ check_mem_boundaries_with_asan.cpp -o check_mem_boundaries_with_asan -O2 -g -fsanitize=address -fno-omit-frame-pointer

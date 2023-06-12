@@ -3,25 +3,19 @@
 #include <ATen/ATen.h>
 
 
-int main() {
+void generic_test() {
+  // auto input = at::arange(1 * 3 * 4 * 5, at::CPU(at::kFloat)).reshape({1, 3, 4, 5});
+  // input = input.contiguous(at::MemoryFormat::ChannelsLast);
 
-    // auto input = at::arange(1 * 3 * 4 * 5, at::CPU(at::kFloat)).reshape({1, 3, 4, 5});
-    // input = input.contiguous(at::MemoryFormat::ChannelsLast);
+  // std::cout << "1 input mem format is CL: " << (input.is_contiguous(at::MemoryFormat::ChannelsLast) ? "true" : "false") << std::endl;
+  // std::cout << "input shape: " << input.sizes() << std::endl;
+  // std::cout << "input strides: " << input.strides() << std::endl;
 
-    // std::cout << "1 input mem format is CL: " << (input.is_contiguous(at::MemoryFormat::ChannelsLast) ? "true" : "false") << std::endl;
-    // std::cout << "input shape: " << input.sizes() << std::endl;
-    // std::cout << "input strides: " << input.strides() << std::endl;
-
-  auto t = at::rand({1, 3, 32, 32}).contiguous(at::MemoryFormat::ChannelsLast);
+  auto t = at::rand({1, 3, 256, 256}).contiguous(at::MemoryFormat::ChannelsLast);
   std::cout << t.sizes() << std::endl;
-  // > [1, 3, 32, 32]
   std::cout << t.strides() << std::endl;
-  // > [3072, 1, 96, 3]
   std::cout << t.suggest_memory_format() << std::endl;
-  // > ChannelsLast
   std::cout << (t.is_contiguous(at::MemoryFormat::ChannelsLast) ? "true" : "false") << std::endl;
-  // > true
-
 
   auto t0 = t[0];
 
@@ -33,7 +27,6 @@ int main() {
   // $8 = false
 
   std::cout << t0.suggest_memory_format() << std::endl;
-
   auto t1 = t0.unsqueeze(0);
 
   // 4D tensor, is_channels_last_ and is_channels_last_contiguous_ are computed
@@ -83,6 +76,78 @@ int main() {
   // > true
   std::cout << t1.suggest_memory_format() << std::endl;
   // > Contiguous   <------ ????
+
+}
+
+void check_mf_on_restrided() {
+  auto t = at::rand({1, 3, 256, 256}).contiguous(at::MemoryFormat::ChannelsLast);
+  std::cout << "----" << std::endl;
+  std::cout << t.sizes() << std::endl;
+  std::cout << t.strides() << std::endl;
+  std::cout << t.suggest_memory_format() << std::endl;
+  std::cout << (t.is_contiguous(at::MemoryFormat::ChannelsLast) ? "true" : "false") << std::endl;
+
+  auto t0 = t[0];
+  std::cout << t0.suggest_memory_format() << std::endl;
+
+
+  auto t1 = t0.unsqueeze(0);
+  std::cout << "----" << std::endl;
+  std::cout << t1.sizes() << std::endl;
+  std::cout << t1.strides() << std::endl;
+  std::cout << (t1.is_contiguous(at::MemoryFormat::ChannelsLast) ? "true" : "false") << std::endl;
+  std::cout << t1.suggest_memory_format() << std::endl;
+
+  auto shape = t1.sizes();
+  auto strides = t1.strides().vec();
+  strides[0] = shape[1] * shape[2] * shape[3];
+  t1 = t1.as_strided(shape, strides);
+
+  std::cout << "----" << std::endl;
+  std::cout << t1.sizes() << std::endl;
+  std::cout << t1.strides() << std::endl;
+  std::cout << (t1.is_contiguous(at::MemoryFormat::ChannelsLast) ? "true" : "false") << std::endl;
+  std::cout << t1.suggest_memory_format() << std::endl;
+}
+
+void check_mf_on_sliced_restrided() {
+  auto t = at::rand({1, 3, 500, 400}).contiguous(at::MemoryFormat::ChannelsLast);
+  auto numel = t.numel();
+
+  t = t.index({"...", at::indexing::Slice(10, 266), at::indexing::Slice(10, 266)});
+
+  std::cout << "----" << std::endl;
+  std::cout << t.sizes() << std::endl;
+  std::cout << t.strides() << std::endl;
+  std::cout << t.suggest_memory_format() << std::endl;
+  std::cout << (t.is_contiguous(at::MemoryFormat::ChannelsLast) ? "true" : "false") << std::endl;
+
+  auto t0 = t[0];
+  std::cout << "----" << std::endl;
+  std::cout << t0.suggest_memory_format() << std::endl;
+
+  auto t1 = t0.unsqueeze(0);
+  std::cout << "----" << std::endl;
+  std::cout << t1.sizes() << std::endl;
+  std::cout << t1.strides() << std::endl;
+  std::cout << t1.suggest_memory_format() << std::endl;
+  std::cout << (t1.is_contiguous(at::MemoryFormat::ChannelsLast) ? "true" : "false") << std::endl;
+
+  auto shape = t1.sizes();
+  auto strides = t1.strides().vec();
+  strides[0] = numel;
+  t1 = t1.as_strided(shape, strides);
+
+  std::cout << "----" << std::endl;
+  std::cout << t1.sizes() << std::endl;
+  std::cout << t1.strides() << std::endl;
+  std::cout << t1.suggest_memory_format() << std::endl;
+  std::cout << (t1.is_contiguous(at::MemoryFormat::ChannelsLast) ? "true" : "false") << std::endl;
+}
+
+int main() {
+
+  check_mf_on_sliced_restrided();
 
   return 0;
 }

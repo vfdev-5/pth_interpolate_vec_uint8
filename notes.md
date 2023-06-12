@@ -341,7 +341,7 @@ Times are in microseconds (us).
 
 ```
 cd /tmp/pth/interpolate_vec_uint8/
-run_with_asan python verif_interp2.py verif_expected --is_ref=False
+run_with_asan python verif_interp2.py verif_expected
 ```
 
 
@@ -1212,7 +1212,7 @@ pip install fire typer
 python verif_interp2.py verif_expected --is_ref=True
 
 # On PR
-python verif_interp2.py verif_expected --is_ref=False
+python verif_interp2.py verif_expected
 ```
 
 ## Some results
@@ -2228,7 +2228,7 @@ tensor([[[[ 12,  15,  17,  19],
 
 PT113 vs PT nightly (2.1.0a0+git5309c44)
 ```
-python verif_interp2.py verif_expected --is_ref=False
+python verif_interp2.py verif_expected
 
 mf/size/dtype/c/osize/aa/mode/ac :  channels_last [256, 256] torch.uint8 3 (320, 321) False bilinear True  -> get expected from file
 Traceback (most recent call last):

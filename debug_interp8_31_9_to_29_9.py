@@ -1,27 +1,10 @@
-
 import numpy as np
 import PIL.Image
 
 import torch
+import cv2
 
 resampling_map = {"bilinear": PIL.Image.BILINEAR, "nearest": PIL.Image.NEAREST, "bicubic": PIL.Image.BICUBIC}
-
-
-# CHECK ALL COMBINATORICS FOR skip_unpacking AND skip_packing
-# c = 3
-# skip_unpacking = False
-# is_out_CL = True
-
-# for c in [1, 2, 3, 4]:
-#     for in_mf in ["CF", "CL", "Other"]:
-#         for out_mf in ["CF", "CL"]:
-#             skip_unpacking = (c == 3 or c ==4) and in_mf == "CL"
-#             skip_packing = ((c == 3 or c ==4) and out_mf == "CL") and (skip_unpacking or c != 3)
-
-#             print(c, in_mf, out_mf, end=" -> \n")
-#             buf_c = c if skip_unpacking else 4
-#             print("\t skip_unpacking:", skip_unpacking, "-->", f"c={buf_c}")
-#             print("\t skip_packing:", skip_packing, "-->", f"{buf_c} -> {c}")
 
 
 def main():
@@ -31,15 +14,13 @@ def main():
 
     # h, w, c = 256, 256, 3
     # h, w, c = 8, 28, 3
-    h, w, c = 32, 32, 3
-    # h += 10; w += 10
-    h *= 3; w *= 3
+    h, w, c = 31, 9, 3
 
     s = w * c
     rgb = list(range(b * h * s))
 
     # oh, ow = 224, 224
-    oh, ow = 12, 12
+    oh, ow = 29, 9
 
     # oh, ow = h - 10, 24
     # oh, ow = 12, w - 10
@@ -50,14 +31,14 @@ def main():
     # for ow in [7, ]:
     for _ in [1, ]:
 
-        # t_input = torch.tensor(rgb, dtype=torch.uint8).reshape(b, h, w, 3).permute(0, 3, 1, 2).contiguous(memory_format=torch.channels_last)
-        t_input = torch.tensor(rgb, dtype=torch.uint8).reshape(b, h, w, 3).permute(0, 3, 1, 2).contiguous()
+        t = torch.tensor(rgb).to(dtype=torch.uint8).reshape(b, h, w, c)
+        # t_input = t.permute(0, 3, 1, 2).contiguous(memory_format=torch.channels_last)
+        t_input = t.permute(0, 3, 1, 2).contiguous()
 
-        t_input = t_input[:, :, 5:-5, 5:-5]
-        # t_input = t_input[:, :, ::3, ::3]
+        np_input = t[0, ...].numpy()
 
-        t_input2 = t_input.contiguous()
-        # t_input2 = t_input.contiguous(memory_format=torch.channels_last)
+        t_input2 = t_input.double()
+        # t_input2 = t_input.float()
         print(
             t_input.shape,
             t_input.stride(),
@@ -74,10 +55,12 @@ def main():
         )
 
         print("====")
-        t_output = torch.nn.functional.interpolate(t_input, (oh, ow), mode="bilinear", antialias=True, align_corners=False)
+        t_output = torch.nn.functional.interpolate(t_input, (oh, ow), mode="bilinear", antialias=False, align_corners=False)
         print("====")
-        t_output2 = torch.nn.functional.interpolate(t_input2, (oh, ow), mode="bilinear", antialias=True, align_corners=False)
+        t_output2 = torch.nn.functional.interpolate(t_input2, (oh, ow), mode="bilinear", antialias=False, align_corners=False).round().byte()
         print("====")
+        np_output3 = cv2.resize(np_input, dsize=(ow, oh), interpolation=cv2.INTER_LINEAR)
+
         print(
             t_output.shape,
             t_output.stride(),
@@ -94,10 +77,24 @@ def main():
         output = t_output[0, ...]
         output2 = t_output2[0, ...]
 
-        # print("Compare:")
-        print(output[0, :2, :10].ravel().tolist())
-        print(output2[0, :2, :10].ravel().tolist())
-        torch.testing.assert_close(t_output, t_output2)
+        print("Compare:")
+        print("")
+        for i in [12, 13, 14, 15]:
+            print(i)
+            print("uint8:", output[0, i, :])
+            print("diff:", (output[0, i, :].long() - output2[0, i, :].long()))
+            print("cv2:", np_output3[i, :, 0])
+            print("float:", output2[0, i, :])
+        print("")
+        print(output[0, :, :].ravel().tolist())
+        print(np_output3[:, :, 0].ravel().tolist())
+
+        # print((output[1, :, :] - output2[1, :, :]).ravel().tolist())
+        print("")
+        print(output[2, :, :].ravel().tolist())
+        print((output[2, :, :] - output2[2, :, :]).ravel().tolist())
+
+        torch.testing.assert_close(t_output, t_output2, rtol=0.0, atol=1.0)
         print("")
 
 

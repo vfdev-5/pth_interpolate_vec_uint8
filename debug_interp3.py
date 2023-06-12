@@ -15,28 +15,27 @@ def main():
     align_corners = None if resample == "nearest" else False
     mf = "channels_first"
     # mf = "channels_last"
-    antialias = False
+    antialias = True
 
     c = 1
     size = 400
     # tensor_uint8 = torch.arange(c * size * size, dtype=torch.uint8).reshape(c, size, size)
     torch.manual_seed(1)
-    tensor_uint8 = torch.randint(80, 180, size=(c, 400, 400), dtype=torch.uint8)
+    # tensor_uint8 = torch.randint(80, 180, size=(c, 400, 400), dtype=torch.uint8)
 
-
-    # tensor_uint8 = torch.tensor([
-    #     [ 12.,  13.,  14.,  15.,  16.,  17.,  18.,  19.],
-    #     [ 60.,  61.,  62.,  63.,  64.,  65.,  66.,  67.],
-    #     [108., 109., 110., 111., 112., 113., 114., 115.],
-    #     [156., 157., 158., 159., 160., 161., 162., 163.],
-    #     [204., 205., 206., 207., 208., 209., 210., 211.],
-    #     [252., 253., 254., 255.,   0.,   1.,   2.,   3.],
-    #     [ 44.,  45.,  46.,  47.,  48.,  49.,  50.,  51.],
-    #     [ 92.,  93.,  94.,  95.,  96.,  97.,  98.,  99.]
-    # ], dtype=torch.uint8)[None, ...]
-    # print(tensor_uint8.shape)
-    # out_size = (4, 4)
-    # size = tensor_uint8.shape[-1]
+    tensor_uint8 = torch.tensor([
+        [ 12.,  13.,  14.,  15.,  16.,  17.,  18.,  19.],
+        [ 60.,  61.,  62.,  63.,  64.,  65.,  66.,  67.],
+        [108., 109., 110., 111., 112., 113., 114., 115.],
+        [156., 157., 158., 159., 160., 161., 162., 163.],
+        [204., 205., 206., 207., 208., 209., 210., 211.],
+        [252., 253., 254., 255.,   0.,   1.,   2.,   3.],
+        [ 44.,  45.,  46.,  47.,  48.,  49.,  50.,  51.],
+        [ 92.,  93.,  94.,  95.,  96.,  97.,  98.,  99.]
+    ], dtype=torch.uint8)[None, ...]
+    print(tensor_uint8.shape)
+    out_size = (4, 4)
+    size = tensor_uint8.shape[-1]
 
     tensor_float32 = tensor_uint8.float()
 
