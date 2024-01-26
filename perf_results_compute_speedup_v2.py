@@ -1,7 +1,8 @@
 import pickle
+import re
+import unittest.mock
 from pathlib import Path
 from typing import List, Optional
-import unittest.mock
 
 import torch
 import torch.utils.benchmark as benchmark
@@ -54,76 +55,80 @@ class CustomizedTable(Table):
         self.rows, self.columns = self.populate_rows_and_columns()
 
 
-def get_new_table(compare, list_col1_col2_desc, debug):
+def get_new_tables(compare, list_col1_col2_desc, debug):
     results = common.Measurement.merge(compare._results)
     grouped_results = compare._group_by_label(results)
-    assert len(grouped_results.values()) == 1, grouped_results.values()
-    groups_iter = iter(grouped_results.values())
-    group = next(groups_iter)
+    assert len(grouped_results.values()) >= 1, [len(grouped_results.values()), grouped_results.values()]
 
-    # Add speed-up column into results:
-    updated_group = []
-    sub_label = None
-    v1 = None
-    v2 = None
-    r = None
-    _, scale = common.select_unit(min([r.median for r in group]))
+    output_tables = []
+    for group in grouped_results.values():
 
-    for col1, col2, description in list_col1_col2_desc:
-        for measurement in group:
-            if debug:
-                print("measurement.task_spec.description:", measurement.task_spec.description)
+        # Add speed-up column into results:
+        updated_group = []
+        sub_label = None
+        v1 = None
+        v2 = None
+        r = None
+        _, scale = common.select_unit(min([r.median for r in group]))
 
-            if measurement.task_spec.description == col1:
-                v1 = measurement.median
-                sub_label = measurement.task_spec.sub_label
+        for col1, col2, description in list_col1_col2_desc:
+            for measurement in group:
+                d1 = measurement.task_spec.description
                 if debug:
-                    print("Matched col1:", col1, v1, sub_label)
+                    print("measurement.task_spec.description:", d1)
 
-            measurement2 = None
-            for m2 in group:
-                d2 = m2.task_spec.description
-                sl2 = m2.task_spec.sub_label
-                if d2 == col2 and sl2 == sub_label:
-                    v2 = m2.median
+                if d1 == col1 or re.match(col1, d1) is not None:
+                    v1 = measurement.median
+                    sub_label = measurement.task_spec.sub_label
                     if debug:
-                        print("Matched col2:", col2, v2)
-                    measurement2 = m2
-                    break
+                        print("Matched col1:", col1, v1, sub_label)
 
-            if measurement not in updated_group:
-                updated_group.append(measurement)
-            if v1 is not None and v2 is not None:
-                if measurement2 not in updated_group:
-                    updated_group.append(measurement2)
-                r = v2 / v1 * scale
-                if debug:
-                    print("ratio is: ", r)
-                v1 = None
-                v2 = None
-                sub_label = None
-                speedup_task = common.TaskSpec(
-                    "",
-                    setup="",
-                    label=measurement.label,
-                    sub_label=measurement.sub_label,
-                    num_threads=measurement.num_threads,
-                    env=measurement.env,
-                    description=description
-                )
-                speedup_measurement = Value(1, [r, ], speedup_task)
-                r = None
-                updated_group.append(speedup_measurement)
+                measurement2 = None
+                for m2 in group:
+                    d2 = m2.task_spec.description
+                    sl2 = m2.task_spec.sub_label
+                    if (d2 == col2 or re.match(col2, d2) is not None) and sl2 == sub_label:
+                        v2 = m2.median
+                        if debug:
+                            print("Matched col2:", col2, v2)
+                        measurement2 = m2
+                        break
 
-    assert len(updated_group) > len(group), "Seems like nothing was added. Run with --debug"
+                if measurement not in updated_group:
+                    updated_group.append(measurement)
+                if v1 is not None and v2 is not None:
+                    if measurement2 not in updated_group:
+                        updated_group.append(measurement2)
+                    r = v2 / v1 * scale
+                    if debug:
+                        print("ratio is: ", r)
+                    v1 = None
+                    v2 = None
+                    sub_label = None
+                    speedup_task = common.TaskSpec(
+                        "",
+                        setup="",
+                        label=measurement.label,
+                        sub_label=measurement.sub_label,
+                        num_threads=measurement.num_threads,
+                        env=measurement.env,
+                        description=description
+                    )
+                    speedup_measurement = Value(1, [r, ], speedup_task)
+                    r = None
+                    updated_group.append(speedup_measurement)
 
-    table = CustomizedTable(
-        updated_group,
-        compare._colorize,
-        compare._trim_significant_figures,
-        compare._highlight_warnings
-    )
-    return table
+        assert len(updated_group) > len(group), "Seems like nothing was added. Run with --debug"
+
+        table = CustomizedTable(
+            updated_group,
+            compare._colorize,
+            compare._trim_significant_figures,
+            compare._highlight_warnings
+        )
+        output_tables.append(table)
+
+    return output_tables
 
 
 def main(
@@ -131,6 +136,7 @@ def main(
     perf_files: List[str],
     compare: Optional[List[str]] = None,
     debug: bool = False,
+    show_cols: bool = False,
 ):
     output_filepath = Path(output_filepath)
     if output_filepath.exists():
@@ -154,6 +160,12 @@ def main(
             )
             ab_results.extend(output["test_results"])
 
+        if show_cols:
+            print("Columns:", ab_results[-1].task_spec.description)
+
+    if show_cols:
+        return
+
     assert len(ab_configs) == len(perf_files), (len(ab_configs), len(perf_files))
     compare_obj = benchmark.Compare(ab_results)
 
@@ -173,13 +185,10 @@ def main(
         col1, col2, description = list_ccd
         list_col1_col2_desc.append((col1, col2, description))
 
-    table = get_new_table(compare_obj, list_col1_col2_desc, debug=debug)
-
-    if debug:
-        print(table.render())
+    tables = get_new_tables(compare_obj, list_col1_col2_desc, debug=debug)
 
     with output_filepath.open("w") as handler:
-        handler.write(f"Description:\n")
+        handler.write(f"Description:\n\n")
         with unittest.mock.patch(
             "torch.utils.benchmark.utils.compare._Row.as_column_strings", patched_as_column_strings
         ):
@@ -187,8 +196,12 @@ def main(
                 handler.write(f"- {Path(in_filepath).stem}\n")
                 handler.write(f"{config}\n")
 
-            handler.write(f"\n")
-            handler.write(table.render())
+            for table in tables:
+                if debug:
+                    print(table.render())
+
+                handler.write(f"\n")
+                handler.write(table.render())
 
 
 if __name__ == "__main__":

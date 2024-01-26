@@ -13,11 +13,15 @@ find_package(Torch REQUIRED)
 
 # add_executable(check_ti_channels_last check_ti_channels_last.cpp)
 # target_link_libraries(check_ti_channels_last PUBLIC ${TORCH_LIBRARIES})
-# set_property(TARGET check_ti_channels_last PROPERTY CXX_STANDARD 14)
+# set_property(TARGET check_ti_channels_last PROPERTY CXX_STANDARD 17)
 
-add_executable(check_ti_channels_first check_ti_channels_first.cpp)
-target_link_libraries(check_ti_channels_first PUBLIC ${TORCH_LIBRARIES})
-set_property(TARGET check_ti_channels_first PROPERTY CXX_STANDARD 14)
+add_executable(check_decomp_upsampling check_decomp_upsampling.cpp)
+target_link_libraries(check_decomp_upsampling PUBLIC ${TORCH_LIBRARIES})
+set_property(TARGET check_decomp_upsampling PROPERTY CXX_STANDARD 17)
+
+# add_executable(check_ti_channels_first check_ti_channels_first.cpp)
+# target_link_libraries(check_ti_channels_first PUBLIC ${TORCH_LIBRARIES})
+# set_property(TARGET check_ti_channels_first PROPERTY CXX_STANDARD 17)
 
 # add_executable(profile_vect_interp profile_vect_interp.cpp)
 # target_link_libraries(profile_vect_interp PUBLIC ${TORCH_LIBRARIES})

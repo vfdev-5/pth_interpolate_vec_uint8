@@ -162,21 +162,22 @@ def run_benchmark(c, dtype, size, osize, aa, mode, mf="channels_first", min_run_
 
 
 def main(
-    output_filepath: str,
-    min_run_time: int = 10,
+    output_folder: str,
+    min_run_time: float = 10.0,
     tag: str = "",
     display: bool = True,
     with_torchvision: bool = False,
     with_pillow: bool = True,
     extended_test_cases=True,
-    num_threads=1,
+    num_threads: int = 1,
 ):
     torch.set_num_threads(num_threads)
-    output_filepath = Path(output_filepath)
-
     from datetime import datetime
 
-    print(f"Timestamp: {datetime.now().strftime('%Y%m%d-%H%M%S')}")
+    now = datetime.now().strftime('%Y%m%d-%H%M%S')
+    output_filepath = Path(output_folder) / f"{now}-upsample-{tag}.pkl"
+
+    print(f"Output filepath: {str(output_filepath)}")
     print(f"Torch version: {torch.__version__}")
     print(f"Torch config: {torch.__config__.show()}")
     print(f"Num threads: {torch.get_num_threads()}")
@@ -249,6 +250,7 @@ def main(
 
     with open(output_filepath, "wb") as handler:
         output = {
+            "filepath": str(output_filepath),
             "torch_version": torch.__version__,
             "torch_config": torch.__config__.show(),
             "num_threads": torch.get_num_threads(),
@@ -261,6 +263,7 @@ def main(
         with unittest.mock.patch(
             "torch.utils.benchmark.utils.compare._Row.as_column_strings", patched_as_column_strings
         ):
+            print()
             compare = benchmark.Compare(test_results)
             compare.print()
 

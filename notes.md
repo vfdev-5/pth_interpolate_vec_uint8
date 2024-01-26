@@ -1176,22 +1176,35 @@ Times are in microseconds (us).
 ## Run benchmarks: nightly vs PR
 
 ### On nightly
+```bash
+python -u run_bench_interp.py output --tag=Nightly
 ```
-python -u run_bench_interp.py "output/$(date "+%Y%m%d-%H%M%S")-nightly.pkl" --tag=nightly
+
+For custom cases
+```bash
+python -u run_bench_interp_custom_cases.py output --tag=Nightly --with_pillow=False
 ```
 
 
 ### On PR
-```
-python -u run_bench_interp.py "output/$(date "+%Y%m%d-%H%M%S")-pr.pkl" --tag=PR
+```bash
+python -u run_bench_interp.py output --tag=PR
 
-python -u make_results_table_from_pickles.py output/$(date "+%Y%m%d-%H%M%S")-pr_vs_nightly.md output/XYZ-pr.pkl output/ABC-nightly.pkl
+pr_pkl=output/20240118-140606-upsample-PR.pkl
+ni_pkl=output/20240118-133434-upsample-Nightly.pkl
+out_name=$(date "+%Y%m%d-%H%M%S")-upsample-pr_vs_nightly
 
-python -u perf_results_compute_speedup.py output/20230320-160044-pr_vs_nightly-speedup.md "['output/XYZ-pr.pkl', 'output/ABC-nightly.pkl']" --col1="torch (2.1.0a0+gitc005105) PR" --col2="torch (2.1.0a0+git5309c44) nightly" --description="Speed-up: PR vs nightly"
+python -u make_results_table_from_pickles.py output/${out_name}.md $pr_pkl $ni_pkl
+python -u perf_results_compute_speedup_v2.py output/${out_name}-speedup.md $pr_pkl $ni_pkl --compare "torch .+ PR;torch .+ Nightly;Speed-up: PR vs Nightly"
 ```
 
+```bash
+python -u run_bench_interp.py output --tag=PR --with-torchvision
 ```
-python -u run_bench_interp.py "output/$(date "+%Y%m%d-%H%M%S")-pr.pkl" --tag=PR --with-torchvision
+
+For custom cases
+```bash
+python -u run_bench_interp_custom_cases.py output --tag=PR --with_pillow=False
 ```
 
 

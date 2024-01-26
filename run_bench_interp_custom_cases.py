@@ -168,8 +168,8 @@ def run_benchmark(c, dtype, size, osize, aa, mode, mf="channels_first", min_run_
 
 
 def main(
-    output_filepath: str,
-    min_run_time: int = 10,
+    output_folder: str,
+    min_run_time: float = 10.0,
     tag: str = "",
     display: bool = True,
     with_torchvision: bool = False,
@@ -179,11 +179,12 @@ def main(
     squeeze_unsqueeze_zero=False
 ):
     torch.set_num_threads(num_threads)
-    output_filepath = Path(output_filepath)
-
     from datetime import datetime
 
-    print(f"Timestamp: {datetime.now().strftime('%Y%m%d-%H%M%S')}")
+    now = datetime.now().strftime('%Y%m%d-%H%M%S')
+    output_filepath = Path(output_folder) / f"{now}-upsample-{tag}.pkl"
+
+    print(f"Output filepath: {str(output_filepath)}")
     print(f"Torch version: {torch.__version__}")
     print(f"Torch config: {torch.__config__.show()}")
     print(f"Num threads: {torch.get_num_threads()}")
@@ -197,24 +198,30 @@ def main(
         for c, dtype in [
             (3, torch.uint8),
             # (3, torch.float32),
-            (4, torch.uint8),
+            # (4, torch.uint8),
         ]:
-            for size in [256, 520, 712]:
-            # for size in [256, ]:
+            # for size in [256, 520, 712]:
+            for size in [400, ]:
                 if isinstance(size, int):
                     size = (size, size)
 
                 osize_aa_mode_list = [
-                    (32, True, "bilinear"),
-                    (32, False, "bilinear"),
-                    (224, True, "bilinear"),
+                    # (32, True, "bilinear"),
+                    # (32, False, "bilinear"),
+                    # (32, False, "bicubic"),
+                    # (224, True, "bilinear"),
                     (224, False, "bilinear"),
+                    (224, False, "bicubic"),
+
+                    (700, False, "bilinear"),
+                    (700, False, "bicubic"),
                 ]
 
                 if size == (256, 256):
                     osize_aa_mode_list += [
-                        (320, True, "bilinear"),
+                        # (320, True, "bilinear"),
                         (320, False, "bilinear"),
+                        (320, False, "bicubic"),
                     ]
 
                 for osize, aa, mode in osize_aa_mode_list:
@@ -228,7 +235,6 @@ def main(
                         with_torchvision=with_torchvision, with_pillow=with_pillow,
                         squeeze_unsqueeze_zero=squeeze_unsqueeze_zero,
                     )
-
 
             if not extended_test_cases:
                 continue
@@ -264,6 +270,7 @@ def main(
 
     with open(output_filepath, "wb") as handler:
         output = {
+            "filepath": str(output_filepath),
             "torch_version": torch.__version__,
             "torch_config": torch.__config__.show(),
             "num_threads": torch.get_num_threads(),
@@ -276,6 +283,7 @@ def main(
         with unittest.mock.patch(
             "torch.utils.benchmark.utils.compare._Row.as_column_strings", patched_as_column_strings
         ):
+            print()
             compare = benchmark.Compare(test_results)
             compare.print()
 
